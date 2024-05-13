@@ -16,7 +16,6 @@ const generateToken = async (user) => {
     user.last_login = Date.now();
     user.save()
 
-
     return {accessToken, refreshToken};
 }
 
@@ -24,7 +23,7 @@ const generateToken = async (user) => {
 // Login controller
 // POST /api/v2/auth/login
 // Request body: { email, password, remember }
-// Response body: { username, email, full_name, role, join_date, status, avatar, date}
+// Response body: { message, username, _id }
 exports.login = async (req, res) => {
     let {email, password, remember} = req.body;
     if (!email || !password) {
@@ -35,13 +34,25 @@ exports.login = async (req, res) => {
             if (!user) {
                 return res.status(404).json({message: 'User not found'});
             }
+            if (user.waits_until > Date.now()) {
+                return res.status(429).json({message: 'Too many login attempts. Try again later'});
+            }
             let isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
+                user.login_attempts += 1;
+                if (user.login_attempts >= 5) {
+                    user.waits_until = Date.now() + Math.pow(2, user.login_attempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
+                }
+                await user.save();
                 return res.status(401).json({message: 'Invalid credentials'});
             }
             if (user.status.toString() !== 'active') {
                 return res.status(403).json({message: `User is ${user.status}`});
             }
+            user.login_attempts = 0;
+
+            await user.save();
+
             let tokens = await generateToken(user);
             let options = {
                 httpOnly: true,
@@ -56,6 +67,8 @@ exports.login = async (req, res) => {
                 message: 'Login successful',
                 username: user.username,
                 _id: user._id,
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
             });
         })
         .catch((error) => {
@@ -99,6 +112,13 @@ exports.register = async (req, res) => {
                     full_name: full_name
                 });
                 await newUser.save();
+                // send email with verification link to activate account
+                let verificationToken = await jwt.signEmailVerificationToken(newUser._id)
+                let verificationLink = `${process.env.FRONTEND_URL}/verify/${verificationToken}`;
+                let subject = 'Account Verification';
+                let text = `Click on the link to verify your account: ${verificationLink}`;
+                let html = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
+                sendEmail(email, subject, text, html).then()
                 return res.status(201).json({message: 'User created successfully'});
             });
 
@@ -218,6 +238,12 @@ exports.resetPassword = async (req, res) => {
         if (!user) {
             return res.status(404).json({message: 'User not found'});
         }
+        for (let old_password of user.old_passwords) {
+            let isMatch = await bcrypt.compare(password, old_password);
+            if (isMatch) {
+                return res.status(400).json({message: 'Password already used'});
+            }
+        }
         bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(password, salt, async (err, hash) => {
                 if (err) {
@@ -225,13 +251,42 @@ exports.resetPassword = async (req, res) => {
                 }
                 await User.findByIdAndUpdate(
                     user._id,
-                    {password: hash},
+                    {
+                        password: hash,
+                        $unset: {
+                            resetToken: 1 // this removes the field from document
+                        },
+                        old_passwords: [...user.old_passwords, user.password]
+                    },
                     null
                 );
                 return res.status(200).json({message: 'Password reset successful'});
             });
         });
     } catch (error) {
+        if (process.env.NODE_ENV === 'development')
+            console.log(error);
+        return res.status(403).json({message: 'Forbidden'});
+    }
+}
+
+
+// Verify email controller
+// PATCH /api/v2/auth/verify-email/:token
+exports.verifyEmail = async (req, res) => {
+    try {
+        let payload = await jwt.verifyEmailVerificationToken(req.params.token);
+        let user = await User.findByIdAndUpdate(
+            payload,
+            {status: 'active'},
+            {new: true}
+        );
+        if (!user) {
+            return res.status(404).json({message: 'User not found'});
+        }
+        return res.status(200).json({message: 'Email verified'});
+    }
+    catch (error) {
         if (process.env.NODE_ENV === 'development')
             console.log(error);
         return res.status(403).json({message: 'Forbidden'});

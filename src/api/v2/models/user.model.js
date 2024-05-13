@@ -61,6 +61,18 @@ let userSchema = new mongoose.Schema({
     refreshToken: {
         type: String,
         required: false
+    },
+    falseLoginAttempts: {
+        type: Number,
+        default: 0
+    },
+    waits_until: {
+        type: Date,
+        default: Date.now()
+    },
+    oldPasswords: {
+        type: [String],
+        default: []
     }
 }, {
     timestamps: true

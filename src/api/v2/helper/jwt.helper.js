@@ -115,8 +115,8 @@ let signResetToken = (payload) => {
             reject(new Error('No reset token secret provided'));
         }
         const options = {
-            // expires in 15 minutes
-            expiresIn: '15m',
+            // expires in 1 hour
+            expiresIn: '1h',
             issuer: 'localhost'
         };
         jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
@@ -144,12 +144,55 @@ let verifyResetToken = (token) => {
 }
 
 
+let signEmailVerificationToken = (payload) => {
+    return new Promise((resolve, reject) => {
+        // Encrypt payload
+        const encryptedPayload = encrypt(payload);
+
+        // Encode encrypted payload with secret key
+        const secret = process.env.EMAIL_VERIFICATION_TOKEN_SECRET;
+        if (!secret) {
+            reject(new Error('No email verification token secret provided'));
+        }
+        const options = {
+            // expires in 1 year
+            expiresIn: '1y',
+            issuer: 'localhost'
+        };
+        jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(token);
+        });
+    });
+}
+
+
+let verifyEmailVerificationToken = (token) => {
+    return new Promise((resolve, reject) => {
+        const secret = process.env.EMAIL_VERIFICATION_TOKEN_SECRET;
+        if (!secret) {
+            reject(new Error('No email verification token secret provided'));
+        }
+        jwtHelper.verify(token, secret, (err, decoded) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(decrypt(decoded.data));
+        });
+    });
+}
+
+
 module.exports = {
     signAccessToken,
     verifyAccessToken,
     signRefreshToken,
     verifyRefreshToken,
     signResetToken,
-    verifyResetToken
+    verifyResetToken,
+    signEmailVerificationToken,
+    verifyEmailVerificationToken
 }
 

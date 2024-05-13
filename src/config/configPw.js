@@ -35,6 +35,17 @@ let configPw = () => {
         process.env.RESET_TOKEN_SECRET = newSecret;
     }
 
+    if (!process.env.EMAIL_VERIFICATION_TOKEN_SECRET) {
+        // Generate a new EMAIL_VERIFICATION_TOKEN_SECRET
+        const newSecret = crypto.randomBytes(64).toString('hex');
+
+        // Append the new EMAIL_VERIFICATION_TOKEN_SECRET to the .env file
+        fs.appendFileSync('.env', `\nEMAIL_VERIFICATION_TOKEN_SECRET=${newSecret}`);
+
+        // Load the new EMAIL_VERIFICATION_TOKEN_SECRET into the environment variables
+        process.env.EMAIL_VERIFICATION_TOKEN_SECRET = newSecret;
+    }
+
     if (!process.env.ENCRYPTION_KEY) {
         // Generate a new ENCRYPTION_KEY
         const newSecret = crypto.randomBytes(64).toString('hex');

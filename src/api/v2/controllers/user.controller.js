@@ -8,6 +8,8 @@ const bcrypt = require("bcrypt");
 
 // Get user profile controller
 // GET /api/v2/user/:userId
+// Request body: { }
+// Response body: { username, email, full_name, phone, address, role, join_date, status, avatar, date_of_birth, gender }\
 exports.getProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
         return res.status(403).json({message: 'Forbidden'});
@@ -61,7 +63,7 @@ exports.updateProfile = async (req, res) => {
         req.user._id,
         update,
         {new: true}
-    )
+    ).select('username email full_name phone address role join_date status avatar date_of_birth gender')
         .then((user) => {
             if (!user) {
                 return res.status(404).json({message: 'User not found'});
@@ -129,9 +131,28 @@ exports.changePassword = async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({message: 'Invalid current password'});
         }
-        user.password = req.body.new_password;
-        await user.save();
-        return res.status(200).json({message: 'Password changed successfully'});
+        for (let old_password of user.old_passwords) {
+            isMatch = await bcrypt.compare(req.body.new_password, old_password);
+            if (isMatch) {
+                return res.status(400).json({message: 'Password already used'});
+            }
+        }
+        bcrypt.genSalt(10, (err, salt) => {
+            bcrypt.hash(req.body.new_password, salt, async (err, hash) => {
+                if (err) {
+                    return res.status(500).json({message: err.message});
+                }
+                await User.findByIdAndUpdate(
+                    user._id,
+                    {
+                        password: hash,
+                        old_passwords: [...user.old_passwords, user.password]
+                    },
+                    null
+                );
+                return res.status(200).json({message: 'Password changed successfully'});
+            });
+        });
     } catch (error) {
         if (process.env.NODE_ENV === 'development')
             console.log(error);

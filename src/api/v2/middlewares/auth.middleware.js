@@ -3,7 +3,7 @@ let User = require('../models/user.model')
 
 let authMiddleware = async (req, res, next) => {
     // Get access token from request
-    let accessToken = req.cookies.accessToken;
+    let accessToken = req.cookies.accessToken || req.headers['x-access-token'] || req.headers['authorization'];
     if (!accessToken) {
         return res.status(401).json({
             success: false,

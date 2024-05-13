@@ -23,7 +23,7 @@ const generateToken = async (user) => {
 // Login controller
 // POST /api/v2/auth/login
 // Request body: { email, password, remember }
-// Response body: { message, username, _id }
+// Response body: { message, username, _id, accessToken, refreshToken }
 exports.login = async (req, res) => {
     let {email, password, remember} = req.body;
     if (!email || !password) {
@@ -158,7 +158,7 @@ exports.logout = async (req, res) => {
 // Refresh token controller
 // POST /api/v2/auth/refresh-token
 exports.refreshToken = async (req, res) => {
-    let refreshToken = req.cookies.refreshToken;
+    let refreshToken = req.cookies.refreshToken || req.headers['x-refresh-token'];
     if (!refreshToken) {
         return res.status(400).json({message: 'Refresh token is required'});
     }

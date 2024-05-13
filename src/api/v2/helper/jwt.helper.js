@@ -1,33 +1,7 @@
-const crypto = require('crypto');
 const jwtHelper = require('jsonwebtoken');
-
-let encrypt = (payload) => {
-    const algorithm = 'aes-256-ctr';
-    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY, process.env.SALT, 32);
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    let encryptedPayload = cipher.update(JSON.stringify(payload), 'utf8', 'hex');
-    encryptedPayload += cipher.final('hex');
-    encryptedPayload = `${iv.toString('hex')}:${encryptedPayload}`;
-    return encryptedPayload;
-
-}
-
-let decrypt = (encryptedPayload) => {
-    const algorithm = 'aes-256-ctr';
-    const key = crypto.scryptSync(process.env.ENCRYPTION_KEY, process.env.SALT, 32);
-    const [iv, encrypted] = encryptedPayload.split(':');
-    const decipher = crypto.createDecipheriv(algorithm, key, Buffer.from(iv, 'hex'));
-    let decryptedPayload = decipher.update(encrypted, 'hex', 'utf8');
-    decryptedPayload += decipher.final('utf8');
-    return JSON.parse(decryptedPayload);
-
-}
 
 let signAccessToken = (payload) => {
     return new Promise((resolve, reject) => {
-        // Encrypt payload
-        const encryptedPayload = encrypt(payload);
 
         // Encode encrypted payload with secret key
         const secret = process.env.ACCESS_TOKEN_SECRET;
@@ -39,7 +13,7 @@ let signAccessToken = (payload) => {
             expiresIn: '15m',
             issuer: 'localhost'
         };
-        jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
+        jwtHelper.sign({data: payload}, secret, options, (err, token) => {
             if (err) {
                 reject(err);
             }
@@ -59,16 +33,13 @@ let verifyAccessToken = (token) => {
             if (err) {
                 reject(err);
             }
-            resolve(decrypt(decoded.data));
+            resolve(decoded.data);
         });
     });
 }
 
 let signRefreshToken = (payload) => {
     return new Promise((resolve, reject) => {
-        // Encrypt payload
-        const encryptedPayload = encrypt(payload);
-
         // Encode encrypted payload with secret key
         const secret = process.env.REFRESH_TOKEN_SECRET;
         if (!secret) {
@@ -79,7 +50,7 @@ let signRefreshToken = (payload) => {
             expiresIn: '7d',
             issuer: 'localhost'
         };
-        jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
+        jwtHelper.sign({data: payload}, secret, options, (err, token) => {
             if (err) {
                 reject(err);
             }
@@ -99,16 +70,13 @@ let verifyRefreshToken = (token) => {
             if (err) {
                 reject(err);
             }
-            resolve(decrypt(decoded.data));
+            resolve(decoded.data);
         });
     });
 }
 
 let signResetToken = (payload) => {
     return new Promise((resolve, reject) => {
-        // Encrypt payload
-        const encryptedPayload = encrypt(payload);
-
         // Encode encrypted payload with secret key
         const secret = process.env.RESET_TOKEN_SECRET;
         if (!secret) {
@@ -119,7 +87,7 @@ let signResetToken = (payload) => {
             expiresIn: '1h',
             issuer: 'localhost'
         };
-        jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
+        jwtHelper.sign({data: payload}, secret, options, (err, token) => {
             if (err) {
                 reject(err);
             }
@@ -138,7 +106,7 @@ let verifyResetToken = (token) => {
             if (err) {
                 reject(err);
             }
-            resolve(decrypt(decoded.data));
+            resolve(decoded.data);
         });
     });
 }
@@ -146,9 +114,6 @@ let verifyResetToken = (token) => {
 
 let signEmailVerificationToken = (payload) => {
     return new Promise((resolve, reject) => {
-        // Encrypt payload
-        const encryptedPayload = encrypt(payload);
-
         // Encode encrypted payload with secret key
         const secret = process.env.EMAIL_VERIFICATION_TOKEN_SECRET;
         if (!secret) {
@@ -159,7 +124,7 @@ let signEmailVerificationToken = (payload) => {
             expiresIn: '1y',
             issuer: 'localhost'
         };
-        jwtHelper.sign({data: encryptedPayload}, secret, options, (err, token) => {
+        jwtHelper.sign({data: payload}, secret, options, (err, token) => {
             if (err) {
                 reject(err);
             }
@@ -179,7 +144,7 @@ let verifyEmailVerificationToken = (token) => {
             if (err) {
                 reject(err);
             }
-            resolve(decrypt(decoded.data));
+            resolve(decoded.data);
         });
     });
 }

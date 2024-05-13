@@ -1,6 +1,6 @@
 let {Borrowing, Borrowing_Details} = require('../models/borrow.model');
-let {Book} = require('../models/book.model');
-let {User} = require('../models/user.model');
+let Book = require('../models/book.model');
+let User = require('../models/user.model');
 
 
 // User Functions
@@ -11,6 +11,7 @@ let {User} = require('../models/user.model');
  * Request: {user_id, book_list: [{book_id, quantity}], days}
  */
 exports.borrow = async (req, res) => {
+    console.log(req.body)
     // Validate request
     if (!req.body.user_id || !req.body.book_list || !req.body.days) {
         res.status(400).send({

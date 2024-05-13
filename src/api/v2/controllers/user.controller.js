@@ -1,7 +1,7 @@
 let User = require('../models/user.model');
-
 let cloudinary = require('../helper/cloudinary.helper');
 const bcrypt = require("bcrypt");
+const fs = require("node:fs");
 
 
 // User Functions Controllers
@@ -81,7 +81,8 @@ exports.updateProfile = async (req, res) => {
 // PUT /api/v2/user/:userId/avatar
 // Request body: { avatar }
 exports.updateAvatar = async (req, res) => {
-    if (!req.user._id.toString() !== req.params.userId) {
+    if (!(req.user._id.toString() === req.params.userId)) {
+        console.log(req.user._id.toString(), req.params.userId);
         return res.status(403).json({message: 'Forbidden'});
     }
     let location = req.file?.path;
@@ -106,6 +107,7 @@ exports.updateAvatar = async (req, res) => {
     } catch (error) {
         if (process.env.NODE_ENV === 'development')
             console.log(error);
+        fs.unlinkSync(location);
         return res.status(500).json({message: 'Internal server error'});
     }
 
@@ -182,7 +184,7 @@ exports.deleteUser = async (req, res) => {
 // Get all users, get user by id, delete user, activate user, deactivate user, suspend user
 
 // Get all users controller
-// GET /api/v2/users/
+// GET /api/v2/users/?username=&email=&full_name=&phone=&address=&gender=&role=&status=
 exports.getAllUsers = async (req, res) => {
     let condition = {};
     if (req.query.role) {

@@ -114,7 +114,7 @@ exports.register = async (req, res) => {
                 await newUser.save();
                 // send email with verification link to activate account
                 let verificationToken = await jwt.signEmailVerificationToken(newUser._id)
-                let verificationLink = `${process.env.FRONTEND_URL}/verify/${verificationToken}`;
+                let verificationLink = `${process.env.CLIENT_URL}/verify/${verificationToken}`;
                 let subject = 'Account Verification';
                 let text = `Click on the link to verify your account: ${verificationLink}`;
                 let html = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
@@ -207,7 +207,7 @@ exports.forgotPassword = async (req, res) => {
         }
         // send email with reset link
         let resetToken = await jwt.signResetToken(user._id);
-        let resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+        let resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
         let subject = 'Reset Password';
         let text = `Click on the link to reset your password: ${resetLink}`;
         let html = `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`;

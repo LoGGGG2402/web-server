@@ -56,7 +56,8 @@ exports.login = async (req, res) => {
             let tokens = await generateToken(user);
             let options = {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production'
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
             };
             if (remember) {
                 options.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -174,7 +175,8 @@ exports.refreshToken = async (req, res) => {
         let tokens = await generateToken(user);
         let options = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production'
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
         };
         res.cookie('accessToken', tokens.accessToken, options);
         res.cookie('refreshToken', tokens.refreshToken, options);

@@ -22,6 +22,9 @@ router.route('/forgot-password')
 router.route('/reset-password/:token')
     .post(authController.resetPassword); // POST /api/v2/auth/reset-password/:token - Reset Password (Public)
 
+router.route('/verify-email/:token')
+    .get(authController.verifyEmail); // GET /api/v2/auth/verify-email/:token - Verify Email (Public)
+
 
 
 module.exports = router;

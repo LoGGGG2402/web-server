@@ -2,8 +2,8 @@ let jwt = require('../helper/jwt.helper');
 let bcrypt = require('bcrypt');
 let {isEmail, isStrongPassword} = require('validator');
 let sendEmail = require('../helper/email.helper');
-
 let User = require('../models/user.model');
+let axios = require('axios');
 
 
 // Support functions
@@ -25,7 +25,22 @@ const generateToken = async (user) => {
 // Request body: { email, password, remember }
 // Response body: { message, username, _id, accessToken, refreshToken }
 exports.login = async (req, res) => {
-    let {email, password, remember} = req.body;
+    const { email, password,remember, recaptcha } = req.body;
+
+    // Verify reCAPTCHA
+    if (recaptcha) {
+        try {
+            const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+            const { success } = response.data;
+            if (!success) {
+                return res.status(400).json({ message: 'reCAPTCHA verification failed' });
+            }
+        } catch (error) {
+            console.error('reCAPTCHA verification error:', error);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+    // Verify email and password
     if (!email || !password) {
         return res.status(400).json({message: 'Missing required fields'});
     }
@@ -68,6 +83,7 @@ exports.login = async (req, res) => {
                 message: 'Login successful',
                 username: user.username,
                 _id: user._id,
+                role: user.role,
                 accessToken: tokens.accessToken,
                 refreshToken: tokens.refreshToken
             });
@@ -82,10 +98,10 @@ exports.login = async (req, res) => {
 
 // Register controller
 // POST /api/v2/auth/register
-// Request body: { username, password, email, full_name }
+// Request body: { username, password, email}
 exports.register = async (req, res) => {
-    let {username, password, email, full_name} = req.body;
-    if (!username || !password || !email || !full_name) {
+    let {username, password, email} = req.body;
+    if (!username || !password || !email ) {
         return res.status(400).json({message: 'Missing required fields'});
     }
     if (!isEmail(email)) {
@@ -110,21 +126,18 @@ exports.register = async (req, res) => {
                     username: username,
                     password: hash,
                     email: email,
-                    full_name: full_name
                 });
                 await newUser.save();
                 // send email with verification link to activate account
                 let verificationToken = await jwt.signEmailVerificationToken(newUser._id)
-                let verificationLink = `${process.env.CLIENT_URL}/verify/${verificationToken}`;
+                res.cookie('verificationToken', verificationToken, {httpOnly: true,maxAge: 10 * 60 * 1000});
+                let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-email/${verificationToken}`;
                 let subject = 'Account Verification';
                 let text = `Click on the link to verify your account: ${verificationLink}`;
                 let html = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
                 sendEmail(email, subject, text, html).then()
-                return res.status(201).json({message: 'User created successfully'});
+                return res.status(201).json({message: 'Please check your email to verify your account'});
             });
-
-
-
         });
     } catch (error) {
         return res.status(500).json({message: error.message});
@@ -209,7 +222,7 @@ exports.forgotPassword = async (req, res) => {
         }
         // send email with reset link
         let resetToken = await jwt.signResetToken(user._id);
-        let resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+        let resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
         let subject = 'Reset Password';
         let text = `Click on the link to reset your password: ${resetLink}`;
         let html = `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`;
@@ -240,7 +253,8 @@ exports.resetPassword = async (req, res) => {
         if (!user) {
             return res.status(404).json({message: 'User not found'});
         }
-        for (let old_password of user.old_passwords) {
+
+        for (let old_password of user.oldPasswords) {
             let isMatch = await bcrypt.compare(password, old_password);
             if (isMatch) {
                 return res.status(400).json({message: 'Password already used'});
@@ -258,7 +272,7 @@ exports.resetPassword = async (req, res) => {
                         $unset: {
                             resetToken: 1 // this removes the field from document
                         },
-                        old_passwords: [...user.old_passwords, user.password]
+                        oldPasswords: [...user.oldPasswords, user.password]
                     },
                     null
                 );
@@ -284,9 +298,52 @@ exports.verifyEmail = async (req, res) => {
             {new: true}
         );
         if (!user) {
+
+            return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
+        }
+        return res.redirect(`${process.env.FRONTEND_URL}/final-register/success`);
+    }
+    catch (error) {
+        if (process.env.NODE_ENV === 'development')
+            console.log(error);
+        return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
+    }
+}
+
+// check login status
+// GET /api/v2/auth/check-login
+exports.checkLoginStatus = async (req, res) => {
+    const token = req.cookies.accessToken || req.headers['x-access-token'];
+    if (!token) {
+        return res.status(401).json({message: 'Logged in'});
+    }
+    try {
+        let payload = await jwt.verifyAccessToken(token);
+        let user = await User.findById(payload, null, null);
+        if (!user) {
             return res.status(404).json({message: 'User not found'});
         }
-        return res.status(200).json({message: 'Email verified'});
+        return res.status(200).json({user});
+}
+    catch (error) {
+        if (process.env.NODE_ENV === 'development')
+            console.log(error);
+        return res.status(403).json({message: 'Forbidden'});
+    }
+}
+
+// check role
+// GET /api/v2/auth/check-role
+// Request body: { user}
+// Response body: { role }
+exports.checkRole = async (req, res) => {
+    const id = req.user._id;
+    try {
+        let user = await User.findById(id, null, null);
+        if (!user) {
+            return res.status(404).json({message: 'User not found'});
+        }
+        return res.status(200).json({role: user.role});
     }
     catch (error) {
         if (process.env.NODE_ENV === 'development')

@@ -4,7 +4,9 @@ let userSchema = new mongoose.Schema({
     username: {
         type: String,
         required: true,
-        unique: true
+    },
+    name: {
+        type: String,
     },
     password: {
         type: String,
@@ -14,10 +16,6 @@ let userSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true
-    },
-    full_name: {
-        type: String,
-        required: true
     },
     phone: {
         type: String,

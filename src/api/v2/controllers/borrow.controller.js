@@ -11,7 +11,6 @@ let User = require('../models/user.model');
  * Request: {user_id, book_list: [{book_id, quantity}], days}
  */
 exports.borrow = async (req, res) => {
-    console.log(req.body)
     // Validate request
     if (!req.body.user_id || !req.body.book_list || !req.body.days) {
         res.status(400).send({
@@ -28,10 +27,19 @@ exports.borrow = async (req, res) => {
     }
 
     // Check if user exists
-    let user = await User.findById(req.body.user_id);
-    if (!user) {
-        res.status(404).send({
-            message: "User not found!"
+    console.log(req.body.user_id);
+    try {
+        let user= await User.findById(req.body.user_id);
+        if (!user) {
+            res.status(404).send({
+                message: "User not found!"
+            });
+            return;
+        }
+    } catch (error) {
+        console.error('Error finding user:', error);
+        res.status(500).send({
+            message: "Error retrieving user information"
         });
         return;
     }
@@ -119,7 +127,7 @@ exports.borrowings = (req, res) => {
  * PUT /api/v2/borrow/:id
  */
 exports.return = async (req, res) => {
-    let id = req.params.id;
+    let id = req.params.borrowId;
 
     let borrowing = await Borrowing.findById(id, { __v: 0 }, null);
     if (!borrowing) {

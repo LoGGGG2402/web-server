@@ -13,14 +13,14 @@ const sendEmail = async (email, subject, text, html) => {
     });
 
     let mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: "Library Management System",
         to: email,
         subject: subject,
         text: text,
         html: html,
     };
 
-    transporter.sendMail(mailOptions, (err, data) => {
+    transporter.sendMail(mailOptions, (err) => {
         if (err && process.env.NODE_ENV === "development") {
             console.log(err);
         }

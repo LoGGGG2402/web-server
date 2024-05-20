@@ -9,14 +9,14 @@ const fs = require("node:fs");
 // Get user profile controller
 // GET /api/v2/user/:userId
 // Request body: { }
-// Response body: { username, email, full_name, phone, address, role, join_date, status, avatar, date_of_birth, gender }\
+// Response body: { username, email, name, phone, address, role, join_date, status, avatar, date_of_birth, gender }\
 exports.getProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
         return res.status(403).json({message: 'Forbidden'});
     }
     try {
         let user = await User.findById(req.user._id, null, null)
-            .select('username email full_name phone address role join_date status avatar date_of_birth gender');
+            .select('username name email name phone address role join_date status avatar date_of_birth gender');
 
         if (!user) {
             return res.status(404).json({message: 'User not found'});
@@ -31,9 +31,9 @@ exports.getProfile = async (req, res) => {
 
 // Update user profile controller
 // PUT /api/v2/user/:userId
-// Request body: { username, email, full_name, phone, address, date_of_birth, gender}
+// Request body: { username, email, name, phone, address, date_of_birth, gender}
 exports.updateProfile = async (req, res) => {
-    if (!req.user._id.toString() !== req.params.userId) {
+    if (req.user._id.toString() !== req.params.userId) {
         return res.status(403).json({message: 'Forbidden'});
     }
     let update = {};
@@ -43,8 +43,8 @@ exports.updateProfile = async (req, res) => {
     if (req.body.email) {
         update.email = req.body.email;
     }
-    if (req.body.full_name) {
-        update.full_name = req.body.full_name;
+    if (req.body.name) {
+        update.name = req.body.name;
     }
     if (req.body.phone) {
         update.phone = req.body.phone;
@@ -63,7 +63,7 @@ exports.updateProfile = async (req, res) => {
         req.user._id,
         update,
         {new: true}
-    ).select('username email full_name phone address role join_date status avatar date_of_birth gender')
+    ).select('username name email name phone address role join_date status avatar date_of_birth gender')
         .then((user) => {
             if (!user) {
                 return res.status(404).json({message: 'User not found'});
@@ -118,7 +118,7 @@ exports.updateAvatar = async (req, res) => {
 // PUT /api/v2/user/:userId/password
 // Request body: { current_password, new_password }
 exports.changePassword = async (req, res) => {
-    if (!req.user._id.toString() !== req.params.userId) {
+    if (req.user._id.toString() !== req.params.userId) {
         return res.status(403).json({message: 'Forbidden'});
     }
     if (!req.body.current_password || !req.body.new_password) {
@@ -133,7 +133,7 @@ exports.changePassword = async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({message: 'Invalid current password'});
         }
-        for (let old_password of user.old_passwords) {
+        for (let old_password of user.oldPasswords) {
             isMatch = await bcrypt.compare(req.body.new_password, old_password);
             if (isMatch) {
                 return res.status(400).json({message: 'Password already used'});
@@ -148,7 +148,7 @@ exports.changePassword = async (req, res) => {
                     user._id,
                     {
                         password: hash,
-                        old_passwords: [...user.old_passwords, user.password]
+                        old_passwords: [...user.oldPasswords, user.password]
                     },
                     null
                 );
@@ -164,11 +164,23 @@ exports.changePassword = async (req, res) => {
 
 // Delete user controller
 // DELETE /api/v2/user/:userId
+// Request body: {password }
 exports.deleteUser = async (req, res) => {
-    if (!req.user._id.toString() !== req.params.userId) {
-        return res.status(403).json({message: 'Forbidden'});
+    if (req.user._id.toString() !== req.params.userId) {
+        return res.status(403).json({ message: 'Forbidden' });
     }
-    User.findByIdAndDelete(req.user._id, null)
+    if (!req.body.password) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+    let user = await User.findById(req.user._id, null, null);
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+    let isMatch = await bcrypt.compare(req.body.password, user.password);
+    if (!isMatch) {
+        return res.status(400).json({ message: 'Invalid password' });
+    } else {
+        User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
             return res.status(200).json({message: 'User deleted successfully'});
         })
@@ -177,7 +189,9 @@ exports.deleteUser = async (req, res) => {
                 console.log(error);
             return res.status(500).json({message: 'Internal server error'});
         });
+    }
 }
+
 
 
 // Admin Functions Controllers
@@ -199,8 +213,8 @@ exports.getAllUsers = async (req, res) => {
     if (req.query.email) {
         condition.email = {$regex: req.query.email, $options: 'i'};
     }
-    if (req.query.full_name) {
-        condition.full_name = {$regex: req.query.full_name, $options: 'i'};
+    if (req.query.name) {
+        condition.name = {$regex: req.query.name, $options: 'i'};
     }
     if (req.query.phone) {
         condition.phone = {$regex: req.query.phone, $options: 'i'};
@@ -248,7 +262,7 @@ exports.getUserById = async (req, res) => {
 
 // Delete user controller
 // DELETE /api/v2/users/admin/:userId
-exports.deleteUser = async (req, res) => {
+exports.deleteUserByAdmin = async (req, res) => {
     User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
             return res.status(200).json({message: 'User deleted successfully'});

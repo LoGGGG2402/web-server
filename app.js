@@ -37,5 +37,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // routes
 app.use('/api', apiRouter);
+app.use('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 module.exports = app;

@@ -113,6 +113,7 @@ exports.create = async (req, res) => {
                 let createdCategories = await Category.insertMany(newCategories.map(name => ({ name })));
                 book_data.categories.push(...createdCategories.map(category => category._id));
             }
+
         } catch (err) {
             // delete uploaded image
             fs.unlinkSync(req.file.path);
@@ -122,23 +123,23 @@ exports.create = async (req, res) => {
         }
     }
 
-    // Upload cover image to cloudinary
-    let cover = await uploadOnCloudinary(req.file.path);
-    fs.unlinkSync(req.file.path);
-    if (!cover) {
-        // delete uploaded image
-        return res.status(500).json({
-            message: "Some error occurred while creating the Book."
-        });
-    }
-    book_data.cover = cover.url;
 
-
-    // Create a Book
-    const book = new Book(book_data);
 
     // Save Book in the database
     try {
+        // Upload cover image to cloudinary
+        let cover = await uploadOnCloudinary(req.file.path);
+        if (!cover) {
+            // delete uploaded image
+            return res.status(500).json({
+                message: "Some error occurred while creating the Book."
+            });
+        }
+        book_data.cover = cover.url;
+
+
+        // Create a Book
+        const book = new Book(book_data);
         const savedBook = await book.save();
         res.status(201).json(savedBook);
     } catch (err) {

@@ -15,6 +15,8 @@ router.route('/:bookId')
     .delete(auth.adminMiddleware, bookController.delete); // DELETE /api/v2/books/:bookId - Delete a Book with id (Admin)
 
 
+
+// csrf
 router.route('/:bookId/reviews')
     .get(bookController.findAllReviews) // GET /api/v2/books/:bookId/reviews - Retrieve all Reviews of a Book with id (Public)
     .post(auth.authMiddleware, bookController.addReview); // POST /api/v2/books/:bookId/reviews - Add a Review to a Book with id (User)

@@ -85,7 +85,8 @@ exports.login = async (req, res) => {
                 _id: user._id,
                 role: user.role,
                 accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken
+                refreshToken: tokens.refreshToken,
+                csrfToken: csrfToken
             });
         })
         .catch((error) => {

@@ -149,7 +149,6 @@ let verifyEmailVerificationToken = (token) => {
     });
 }
 
-
 module.exports = {
     signAccessToken,
     verifyAccessToken,

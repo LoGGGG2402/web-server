@@ -23,11 +23,15 @@ let authMiddleware = async (req, res, next) => {
         }
         req.user = user;
 
-        next();
 
+        next();
     } catch (err) {
         if (process.env.NODE_ENV === 'development')
             console.log(err);
+
+        // clear cookie
+        res.clearCookie('accessToken');
+
         return res.status(401).json({
             success: false,
             message: 'Unauthorized'

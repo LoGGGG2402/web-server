@@ -27,7 +27,6 @@ exports.borrow = async (req, res) => {
     }
 
     // Check if user exists
-    console.log(req.body.user_id);
     try {
         let user= await User.findById(req.body.user_id);
         if (!user) {

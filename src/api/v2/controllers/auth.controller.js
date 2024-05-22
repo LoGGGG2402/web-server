@@ -2,8 +2,10 @@ let jwt = require('../helper/jwt.helper');
 let bcrypt = require('bcrypt');
 let {isEmail, isStrongPassword} = require('validator');
 let sendEmail = require('../helper/email.helper');
+const GoogleRecaptcha = require('google-recaptcha');
 let User = require('../models/user.model');
 let axios = require('axios');
+let verifyAccessToken = require('../helper/jwt.helper').verifyAccessToken;
 
 
 // Support functions
@@ -71,8 +73,7 @@ exports.login = async (req, res) => {
             let tokens = await generateToken(user);
             let options = {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
+                secure: process.env.NODE_ENV === 'production'
             };
             if (remember) {
                 options.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -85,8 +86,7 @@ exports.login = async (req, res) => {
                 _id: user._id,
                 role: user.role,
                 accessToken: tokens.accessToken,
-                refreshToken: tokens.refreshToken,
-                csrfToken: csrfToken
+                refreshToken: tokens.refreshToken
             });
         })
         .catch((error) => {
@@ -189,8 +189,7 @@ exports.refreshToken = async (req, res) => {
         let tokens = await generateToken(user);
         let options = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
+            secure: process.env.NODE_ENV === 'production'
         };
         res.cookie('accessToken', tokens.accessToken, options);
         res.cookie('refreshToken', tokens.refreshToken, options);

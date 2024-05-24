@@ -5,12 +5,23 @@ const fs = require("node:fs");
 
 let writeLog = require('../helper/log.helper');
 
+let {isEmail, isStrongPassword, isDate} = require('validator');
+
+const createDOMPurify = require('dompurify');
+const {JSDOM} = require("jsdom");
+const isMobilePhone = require("validator/es/lib/isMobilePhone");
+// Create a new JSDOM instance
+const window = new JSDOM('').window;
+
+// Initialize DOMPurify with the JSDOM window
+const DOMPurify = createDOMPurify(window);
+
 
 // User Functions Controllers
 
 // Get user profile controller
 // GET /api/v2/user/:userId
-// Request body: { }
+// Request body: {}
 // Response body: { username, email, name, phone, address, role, join_date, status, avatar, date_of_birth, gender }\
 exports.getProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
@@ -34,7 +45,7 @@ exports.getProfile = async (req, res) => {
 }
 
 // Update user profile controller
-// PUT /api/v2/user/:userId
+// PUT /api/v2/user/
 // Request body: { username, email, name, phone, address, date_of_birth, gender}
 exports.updateProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
@@ -43,24 +54,56 @@ exports.updateProfile = async (req, res) => {
     }
     let update = {};
     if (req.body.username) {
-        update.username = req.body.username;
+        let clean = DOMPurify.sanitize(req.body.username);
+        if (clean !== req.body.username) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid username] - [400]`);
+            return res.status(400).json({message: 'Invalid username'});
+        }
+        update.username = clean;
     }
     if (req.body.email) {
+        if (!isEmail(req.body.email)) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid email] - [400]`);
+            return res.status(400).json({message: 'Invalid email'});
+        }
         update.email = req.body.email;
     }
     if (req.body.name) {
+        let clean = DOMPurify.sanitize(req.body.name);
+        if (clean !== req.body.name) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid name] - [400]`);
+            return res.status(400).json({message: 'Invalid name'});
+        }
         update.name = req.body.name;
     }
     if (req.body.phone) {
+        if (!isMobilePhone(req.body.phone, 'any')) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid phone] - [400]`);
+            return res.status(400).json({message: 'Invalid phone'});
+        }
         update.phone = req.body.phone;
     }
     if (req.body.address) {
+        let clean = DOMPurify.sanitize(req.body.address);
+        if (clean !== req.body.address) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid address] - [400]`);
+            return res.status(400).json({message: 'Invalid address'});
+        }
         update.address = req.body.address;
     }
     if (req.body.date_of_birth) {
+        if (!isDate(req.body.date_of_birth)) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid date of birth] - [400]`);
+            return res.status(400).json({message: 'Invalid date of birth'});
+        }
         update.date_of_birth = req.body.date_of_birth;
     }
     if (req.body.gender) {
+        // gender in ['male', 'female', 'other']
+        if (['male', 'female', 'other'].indexOf(req.body.gender) === -1) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid gender] - [400]`);
+            return res.status(400).json({message: 'Invalid gender'});
+        }
         update.gender = req.body.gender
     }
 
@@ -134,6 +177,10 @@ exports.changePassword = async (req, res) => {
     if (!req.body.current_password || !req.body.new_password) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
+    }
+    if (!isStrongPassword(req.body.new_password)) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid new password] - [400]`);
+        return res.status(400).json({message: 'Invalid new password (Minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number and 1 special character)'});
     }
     try {
         let user = await User.findById(req.user._id, null, null);
@@ -297,7 +344,7 @@ exports.deleteUserByAdmin = async (req, res) => {
 
 // Change user status controller
 // PUT /api/v2/users/admin/:userId
-// Request body: { status }
+// Request body: { status, role}
 exports.changeStatus = async (req, res) => {
     if (!req.body.status) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);

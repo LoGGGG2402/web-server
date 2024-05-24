@@ -15,7 +15,6 @@ exports.borrow = async (req, res) => {
     // Validate request
     if (!req.body.user_id || !req.body.book_list || !req.body.days) {
         writeLog.error('Content can not be empty!', req.body);
-        // [${req.clientIp}] - [${req.user.username}] - [${req.user.role}] - [Book title is missing] - [400]
         writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Content is empty!] - [400]`);
         return res.status(400).send({
             message: "Content can not be empty!"
@@ -243,7 +242,7 @@ exports.details = async (req, res) => {
                 });
         })
         .catch(err => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [${err}] - [500]`);
             return res.status(500).send({
                 message: "Some error occurred while retrieving the Borrowing Details."
             });
@@ -253,7 +252,6 @@ exports.details = async (req, res) => {
 
 
 // Admin Functions
-
 /**
  * Retrieve all Borrowings from the database.
  * GET /api/v2/borrow/admin
@@ -308,14 +306,14 @@ exports.findOne = async (req, res) => {
                     res.status(200).send(data);
                 })
                 .catch(err => {
-                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [${err}] - [500]`);
                     return res.status(500).send({
                         message: "Some error occurred while retrieving the Borrowing Details."
                     });
                 });
         })
         .catch(err => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [${err}] - [500]`);
             return res.status(500).send({
                 message: "Some error occurred while retrieving the Borrowing Details."
             });

@@ -60,9 +60,9 @@ exports.findAll = (req, res) => {
             return res.status(200).json(books);
         })
         .catch(err => {
-            writeLog.error(`[${req.clientIp}] - [${err.message}] - [500]`)
+            writeLog.error(`[${req.clientIp}] - [${err}] - [500]`)
             return res.status(500).json({
-                message: err.message || "Some error occurred while retrieving books."
+                message: "Some error occurred while retrieving books."
             });
         });
 };
@@ -93,12 +93,40 @@ exports.create = async (req, res) => {
     }
 
     // Get categories from the database if they exist get their ids and add them to the book object before saving else
+    let arrCheck = [req.body.title, req.body.author, req.body.description, req.body.publication_date, req.body.publisher, req.body.quantity, req.body.language, req.body.isbn];
+    if (arrCheck.includes(undefined)) {
+        fs.unlinkSync(req.file.path);
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book data is missing] - [400]`)
+        return res.status(400).json({
+            message: "Book data is missing"
+        });
+    }
+    // DOMPurify check for XSS
+    for (let ntc in arrCheck) {
+        let cleanText = DOMPurify.sanitize(ntc);
+        if (cleanText !== ntc) {
+            fs.unlinkSync(req.file.path);
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid data] - [201]`)
+            return res.status(201).json({
+                message: "Invalid data"
+            });
+        }
+    }
+    for (let ntc in categories_name) {
+        let cleanText = DOMPurify.sanitize(ntc);
+        if (cleanText !== ntc) {
+            fs.unlinkSync(req.file.path);
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid data] - [201]`)
+            return res.status(201).json({
+                message: "Invalid data"
+            });
+        }
+    }
     // create them
     let book_data = {
         title: req.body.title,
         author: req.body.author,
         description: req.body.description,
-        // cover: req.file ? req.file.path : 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.imdb.com%2Ftitle%2Ftt11206172%2F&psig=AOvVaw2lztlDB21LAbkrjhDZDMUS&ust=1714803217679000&source=images&cd=vfe&opi=89978449&ved=0CBIQjRxqFwoTCOjqhPjp8IUDFQAAAAAdAAAAABAE',
         publication_date: req.body.publication_date,
         publisher: req.body.publisher,
         quantity: req.body.quantity,
@@ -122,9 +150,9 @@ exports.create = async (req, res) => {
             }
         } catch (err) {
             fs.unlinkSync(req.file.path);
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${error}] - [500]`)
             return res.status(500).json({
-                message: err.message || "Some error occurred while creating the Book."
+                message: "Some error occurred while creating the Book."
             });
         }
     }
@@ -152,8 +180,9 @@ exports.create = async (req, res) => {
     } catch (err) {
         // delete uploaded image
         fs.unlinkSync(req.file.path);
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${error}] - [500]`)
         return res.status(500).json({
-            message: err.message || "Some error occurred while creating the Book."
+            message: "Some error occurred while creating the Book."
         });
     }
 }
@@ -208,6 +237,23 @@ exports.update = async (req, res) => {
             });
         }
 
+        let arrCheck = [req.body.title, req.body.author, req.body.description, req.body.publication_date, req.body.publisher, req.body.quantity, req.body.language, req.body.isbn];
+        for (let ntc in arrCheck) {
+            if (arrCheck[ntc] === undefined) {
+                writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book data is missing] - [400]`)
+                return res.status(400).json({
+                    message: "Book data is missing"
+                });
+            }
+            let cleanText = DOMPurify.sanitize(ntc);
+            if (cleanText !== ntc) {
+                writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid data] - [201]`)
+                return res.status(201).json({
+                    message: "Invalid data"
+                });
+            }
+        }
+
         // Build update object with fields from request body
         let update = {};
         if (req.body.title) update.title = req.body.title;
@@ -219,43 +265,47 @@ exports.update = async (req, res) => {
         if (req.body.quantity) update.quantity = req.body.quantity;
         if (req.body.language) update.language = req.body.language;
         if (req.body.isbn) update.isbn = req.body.isbn;
-
-
         // Process categories
-if (req.body.categories) {
-    try {
-        update.categories_name = req.body.categories;
-        // Ensure categoriesArray is always an array
-        const categoriesArray = Array.isArray(req.body.categories) ? req.body.categories : [req.body.categories];
+        if (req.body.categories) {
+            for (let ntc in req.body.categories) {
+                let cleanText = DOMPurify.sanitize(ntc);
+                if (cleanText !== ntc) {
+                    writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid data] - [201]`)
+                    return res.status(201).json({
+                        message: "Invalid data"
+                    });
+                }
+            }
+            try {
+                update.categories_name = req.body.categories;
+                // Ensure categoriesArray is always an array
+                const categoriesArray = Array.isArray(req.body.categories) ? req.body.categories : [req.body.categories];
 
-        // Find categories matching the names in categoriesArray
-        let categoryData = await Category.find({ name: { $in: categoriesArray } }).exec();
+                // Find categories matching the names in categoriesArray
+                let categoryData = await Category.find({name: {$in: categoriesArray}}).exec();
 
-        // Get category IDs
-        let categoryIds = categoryData.map(data => data._id);
+                // Get category IDs
+                let categoryIds = categoryData.map(data => data._id);
 
-        // Filter out new categories not present in the database
-        let newCategories = categoriesArray.filter(data => !categoryData.map(c => c.name).includes(data));
+                // Filter out new categories not present in the database
+                let newCategories = categoriesArray.filter(data => !categoryData.map(c => c.name).includes(data));
 
-        // If new categories are found, insert them into the database and update categoryIds
-        if (newCategories.length > 0) {
-            let createdCategories = await Category.insertMany(newCategories.map(name => ({ name })));
-            categoryIds.push(...createdCategories.map(category => category._id));
+                // If new categories are found, insert them into the database and update categoryIds
+                if (newCategories.length > 0) {
+                    let createdCategories = await Category.insertMany(newCategories.map(name => ({name})));
+                    categoryIds.push(...createdCategories.map(category => category._id));
+                }
+
+                // Update the categories field in the update object
+                update.categories = categoryIds;
+            } catch (err) {
+                // Handle error
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${error}] - [500]`)
+                return res.status(500).json({
+                    message: "Some error occurred while processing categories."
+                });
+            }
         }
-
-        // Update the categories field in the update object
-        update.categories = categoryIds;
-    } catch (err) {
-        // Handle error
-        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
-        return res.status(500).json({
-            message: err.message || "Some error occurred while processing categories."
-        });
-    }
-}
-
-
-
         // Find and update the book
         let updatedBook = await Book.findByIdAndUpdate(req.params.bookId, update, null).exec();
 
@@ -270,9 +320,9 @@ if (req.body.categories) {
             message: "Book updated successfully!"
         });
     } catch (err) {
-        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${error}] - [500]`)
         return res.status(500).json({
-            message: err.message || "Some error occurred while updating the Book."
+            message: "Some error occurred while updating the Book."
         });
     }
 }
@@ -328,7 +378,7 @@ exports.addReview = (req, res) => {
         });
     }
     let cleanText = DOMPurify.sanitize(req.body.text);
-    console.log(cleanText)
+    // console.log(cleanText)
     if (cleanText !== req.body.text) {
         writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid comment] - [201]`)
         return res.status(201).json({
@@ -362,14 +412,14 @@ exports.addReview = (req, res) => {
                     return res.status(200).json(review);
                 })
                 .catch(err => {
-                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Error updating book with id ${req.params.bookId}] - [500]`)
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Error updating book with id ${req.params.bookId}] - [500] - [${err}]`)
                     return res.status(500).json('Error updating book with id ' + req.params.bookId);
                 });
         })
         .catch(err => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err}] - [500]`)
             return res.status(500).json({
-                message: err.message || "Some error occurred while adding review."
+                message:  "Some error occurred while adding review."
             });
         });
 }
@@ -381,15 +431,15 @@ exports.addReview = (req, res) => {
  * Access: Public
  */
 exports.findAllReviews = (req, res) => {
-    Review.find({book_id: req.params.bookId}, null, null)
+    Review.find({book_id: {"$eq": req.params.bookId}}, null, null)
         .then(reviews => {
             writeLog.info(`[${req.clientIp}] - [Reviews retrieved successfully!] - [200]`)
             return res.status(200).json(reviews);
         })
         .catch(err => {
-            writeLog.error(`[${req.clientIp}] - [${err.message}] - [500]`)
+            writeLog.error(`[${req.clientIp}] - [${err}] - [500]`)
             return res.status(500).json({
-                message: err.message || "Some error occurred while retrieving reviews."
+                message: error || "Some error occurred while retrieving reviews."
             });
         });
 }

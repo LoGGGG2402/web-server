@@ -84,7 +84,7 @@ let signResetToken = (payload) => {
         }
         const options = {
             // expires in 1 hour
-            expiresIn: '1h',
+            expiresIn: '10m',
             issuer: 'localhost'
         };
         jwtHelper.sign({data: payload}, secret, options, (err, token) => {
@@ -121,7 +121,7 @@ let signEmailVerificationToken = (payload) => {
         }
         const options = {
             // expires in 1 year
-            expiresIn: '1y',
+            expiresIn: '10m',
             issuer: 'localhost'
         };
         jwtHelper.sign({data: payload}, secret, options, (err, token) => {

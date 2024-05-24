@@ -60,14 +60,15 @@ exports.login = async (req, res) => {
                 return res.status(404).json({message: `${email} Invalid credentials`});
             }
             if (user.waits_until > Date.now()) {
+                let message = 'Too many login attempts. Please wait for '+ Math.max(0, Math.ceil((user.waits_until-Date.now()) / 1000 / 60)) +' minutes';
                 writeLog.error(`[${req.clientIp}] ${user.email} Too many login attempts. Try again later`);
-                return res.status(429).json({message: 'Too many login attempts. Try again later'});
+                return res.status(429).json({message: message});
             }
             let isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
-                user.login_attempts += 1;
-                if (user.login_attempts >= 5) {
-                    user.waits_until = Date.now() + Math.pow(2, user.login_attempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
+                user.falseLoginAttempts += 1;
+                if (user.falseLoginAttempts >= 5) {
+                    user.waits_until = Date.now() + Math.pow(2, user.falseLoginAttempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
                 }
                 await user.save();
                 writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
@@ -77,7 +78,7 @@ exports.login = async (req, res) => {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});
             }
-            user.login_attempts = 0;
+            user.falseLoginAttempts = 0;
 
             await user.save();
 
@@ -369,7 +370,7 @@ exports.activateAccount = async (req, res) => {
             return res.status(404).json({message: 'User not found'});
         }
         // send email with verification link to activate account
-        let verificationToken = await jwt.signEmailVerificationToken(user._id)
+        let verificationToken = await jwt.signEmailVerificationToken(user[0]._id)
         res.cookie('verificationToken', verificationToken, {httpOnly: true,maxAge: 10 * 60 * 1000});
         let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-email/${verificationToken}`;
         let subject = 'Account Verification';

@@ -23,7 +23,6 @@ let authMiddleware = async (req, res, next) => {
         }
         req.user = user;
 
-
         next();
     } catch (err) {
         if (process.env.NODE_ENV === 'development')

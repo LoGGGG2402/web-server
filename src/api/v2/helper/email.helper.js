@@ -20,11 +20,12 @@ const sendEmail = async (email, subject, text, html) => {
         html: html,
     };
 
-    transporter.sendMail(mailOptions, (err) => {
-        if (err && process.env.NODE_ENV === "development") {
-            console.log(err);
-        }
-    });
-}
+    try {
+        let info = await transporter.sendMail(mailOptions);
+        console.log("Email sent successfully:", info);
+    } catch (err) {
+        console.error("Error sending email:", err);
+    }
+};
 
 module.exports = sendEmail;

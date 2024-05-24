@@ -113,9 +113,7 @@ exports.create = async (req, res) => {
                 let createdCategories = await Category.insertMany(newCategories.map(name => ({ name })));
                 book_data.categories.push(...createdCategories.map(category => category._id));
             }
-
         } catch (err) {
-            // delete uploaded image
             fs.unlinkSync(req.file.path);
             return res.status(500).json({
                 message: err.message || "Some error occurred while creating the Book."
@@ -311,6 +309,12 @@ exports.addReview = (req, res) => {
         });
     }
     let cleanText = DOMPurify.sanitize(req.body.text);
+    console.log(cleanText)
+    if (cleanText !== req.body.text) {
+        return res.status(201).json({
+            message: "Invalid comment"
+        });
+    }
 
     // Find book and update it with the request body
     let review = new Review({

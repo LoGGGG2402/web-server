@@ -1,10 +1,12 @@
 let jwt = require('../helper/jwt.helper')
 let User = require('../models/user.model')
+let writeLog = require('../helper/log.helper')
 
 let authMiddleware = async (req, res, next) => {
     // Get access token from request
     let accessToken = req.cookies.accessToken || req.headers['x-access-token'] || req.headers['authorization'];
     if (!accessToken) {
+        writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - No token provided.`)
         return res.status(401).json({
             success: false,
             message: 'No token provided.'
@@ -16,17 +18,16 @@ let authMiddleware = async (req, res, next) => {
         let payload = await jwt.verifyAccessToken(accessToken);
         let user = await User.findById(payload, null, null);
         if (!user) {
+            writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
             return res.status(401).json({
                 success: false,
                 message: 'Unauthorized'
             });
         }
         req.user = user;
-
         next();
     } catch (err) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(err);
+        writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
         return res.status(401).json({
             success: false,
             message: 'Unauthorized'

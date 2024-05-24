@@ -329,6 +329,19 @@ exports.getUserById = async (req, res) => {
 // Delete user controller
 // DELETE /api/v2/users/admin/:userId
 exports.deleteUserByAdmin = async (req, res) => {
+    const { recaptcha } = req.body;
+    if (recaptcha) {
+        try {
+            const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+            const { success } = response.data;
+            if (!success) {
+                return res.status(400).json({ message: 'reCAPTCHA verification failed' });
+            }
+        } catch (error) {
+            console.error('reCAPTCHA verification error:', error);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+    }
     User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
             writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [User deleted successfully] - [200]`);
@@ -345,15 +358,30 @@ exports.deleteUserByAdmin = async (req, res) => {
 // PUT /api/v2/users/admin/:userId
 // Request body: { status, role}
 exports.changeStatus = async (req, res) => {
-    if (!req.body.status) {
+    if (!req.body.status || !req.body.role) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
 
+    const { recaptcha } = req.body;
+    // Verify reCAPTCHA
+    if (recaptcha) {
+        try {
+            const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+            const { success } = response.data;
+            if (!success) {
+                return res.status(400).json({ message: 'reCAPTCHA verification failed' });
+            }
+        } catch (error) {
+            console.error('reCAPTCHA verification error:', error);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+
     User.findByIdAndUpdate(
         req.params.userId,
-        {status: req.body.status},
-        null
+        req.body,
+        {new: true}
     )
         .then((user) => {
             if (!user) {

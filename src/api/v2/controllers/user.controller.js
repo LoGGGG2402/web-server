@@ -5,11 +5,10 @@ const fs = require("node:fs");
 
 let writeLog = require('../helper/log.helper');
 
-let {isEmail, isStrongPassword, isDate} = require('validator');
+let {isEmail, isStrongPassword, isDate, isMobilePhone} = require('validator');
 
 const createDOMPurify = require('dompurify');
 const {JSDOM} = require("jsdom");
-const isMobilePhone = require("validator/es/lib/isMobilePhone");
 // Create a new JSDOM instance
 const window = new JSDOM('').window;
 

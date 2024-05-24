@@ -7,10 +7,10 @@ let authMiddleware = async (req, res, next) => {
     let accessToken = req.cookies.accessToken || req.headers['x-access-token'] || req.headers['authorization'];
     if (!accessToken) {
         writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - No token provided.`)
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken')
-        res.clearCookie('csrfToken')
-        res.redirect('/login')
+        // res.clearCookie('accessToken');
+        // res.clearCookie('refreshToken')
+        // res.clearCookie('csrfToken')
+        // res.redirect('/login')
         return res.status(401).json({
             success: false,
             message: 'No token provided.'
@@ -22,10 +22,10 @@ let authMiddleware = async (req, res, next) => {
         let payload = await jwt.verifyAccessToken(accessToken);
         let user = await User.findById(payload, null, null);
         if (!user) {
-            res.clearCookie('accessToken');
-            res.clearCookie('refreshToken')
-            res.clearCookie('csrfToken')
-            res.redirect('/login')
+            // res.clearCookie('accessToken');
+            // res.clearCookie('refreshToken')
+            // res.clearCookie('csrfToken')
+            // res.redirect('/login')
             writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
             return res.status(401).json({
                 success: false,
@@ -35,10 +35,10 @@ let authMiddleware = async (req, res, next) => {
         req.user = user;
         next();
     } catch (err) {
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken')
-        res.clearCookie('csrfToken')
-        res.redirect('/login')
+        // res.clearCookie('accessToken');
+        // res.clearCookie('refreshToken')
+        // res.clearCookie('csrfToken')
+        // res.redirect('/login')
         writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
         return res.status(401).json({
             success: false,
@@ -54,10 +54,10 @@ let adminMiddleware = async (req, res, next) => {
 
     if (!accessToken) {
         writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - No token provided.`)
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken')
-        res.clearCookie('csrfToken')
-        res.redirect('/login')
+        // res.clearCookie('accessToken');
+        // res.clearCookie('refreshToken')
+        // res.clearCookie('csrfToken')
+        // res.redirect('/login')
         return res.status(401).json({
             success: false,
             message: 'Forbidden'
@@ -89,10 +89,10 @@ let adminMiddleware = async (req, res, next) => {
         next();
     } catch (err) {
         writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken')
-        res.clearCookie('csrfToken')
-        res.redirect('/login')
+        // res.clearCookie('accessToken');
+        // res.clearCookie('refreshToken')
+        // res.clearCookie('csrfToken')
+        // res.redirect('/login')
         return res.status(401).json({
             success: false,
             message: 'Unauthorized'

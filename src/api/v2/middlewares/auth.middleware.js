@@ -55,13 +55,13 @@ let adminMiddleware = async (req, res, next) => {
                 message: 'Unauthorized'
             });
         }
-        console.log(user)
         if (user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Forbidden'
             });
         }
+        req.user = user;
         next();
     } catch (err) {
         if (process.env.NODE_ENV === 'development')

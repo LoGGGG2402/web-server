@@ -9,6 +9,7 @@ let {isEmail, isStrongPassword, isDate, isMobilePhone} = require('validator');
 
 const createDOMPurify = require('dompurify');
 const {JSDOM} = require("jsdom");
+const axios = require("axios");
 // Create a new JSDOM instance
 const window = new JSDOM('').window;
 
@@ -362,7 +363,6 @@ exports.changeStatus = async (req, res) => {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
-
     const { recaptcha } = req.body;
     // Verify reCAPTCHA
     if (recaptcha) {

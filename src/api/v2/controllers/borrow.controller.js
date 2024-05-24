@@ -2,6 +2,7 @@ let {Borrowing, Borrowing_Details} = require('../models/borrow.model');
 let Book = require('../models/book.model');
 let User = require('../models/user.model');
 
+let writeLog = require('../helper/log.helper');
 
 // User Functions
 
@@ -13,34 +14,35 @@ let User = require('../models/user.model');
 exports.borrow = async (req, res) => {
     // Validate request
     if (!req.body.user_id || !req.body.book_list || !req.body.days) {
-        res.status(400).send({
+        writeLog.error('Content can not be empty!', req.body);
+        // [${req.clientIp}] - [${req.user.username}] - [${req.user.role}] - [Book title is missing] - [400]
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Content is empty!] - [400]`);
+        return res.status(400).send({
             message: "Content can not be empty!"
         });
-        return;
     }
 
     if (req.user._id.toString() !== req.body.user_id) {
-        res.status(401).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden!] - [401]`);
+        return res.status(401).send({
             message: "Forbidden!"
         });
-        return;
     }
 
     // Check if user exists
     try {
         let user= await User.findById(req.body.user_id);
         if (!user) {
-            res.status(404).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found!] - [404]`);
+            return res.status(404).send({
                 message: "User not found!"
             });
-            return;
         }
     } catch (error) {
-        console.error('Error finding user:', error);
-        res.status(500).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Error retrieving user information] - [500]`);
+        return res.status(500).send({
             message: "Error retrieving user information"
         });
-        return;
     }
 
     let books = [];
@@ -49,16 +51,16 @@ exports.borrow = async (req, res) => {
     for (let i = 0; i < req.body.book_list.length; i++) {
         let book = await Book.findById(req.body.book_list[i].book_id);
         if (!book) {
-            res.status(404).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Book not found!] - [404]`);
+            return res.status(404).send({
                 message: "Book not found!"
             });
-            return;
         }
         if (book.quantity < req.body.book_list[i].quantity) {
-            res.status(400).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Not enough books in stock!] - [400]`);
+            return res.status(400).send({
                 message: "Not enough books in stock!"
             });
-            return;
         }
         books.push(book);
     }
@@ -86,16 +88,19 @@ exports.borrow = async (req, res) => {
                     books.forEach(book => {
                         book.save();
                     });
-                    res.send(data);
+                    writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowing created successfully.] - [200]`);
+                    return res.status(200).send(data);
                 })
                 .catch(err => {
-                    res.status(500).send({
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while creating the Borrowing_Details.] - [500]`);
+                    return res.status(500).send({
                         message: err.message || "Some error occurred while creating the Borrowing_Details."
                     });
                 });
         })
         .catch(err => {
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while creating the Borrowing.] - [500]`);
+            return res.status(500).send({
                 message: err.message || "Some error occurred while creating the Borrowing."
             });
         });
@@ -109,12 +114,14 @@ exports.borrow = async (req, res) => {
 exports.borrowings = (req, res) => {
     Borrowing.find({ user_id: req.user._id }, { __v: 0 }, null)
         .then(data => {
-            res.send(data);
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowings retrieved successfully.] - [200]`);
+            res.status(200).send(data);
         })
         .catch(err => {
             if (process.env.NODE_ENV === 'development')
                 console.log(err);
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving borrowings.] - [500]`);
+            return res.status(500).send({
                 message: "Some error occurred while retrieving borrowings."
             });
         });
@@ -130,24 +137,24 @@ exports.return = async (req, res) => {
 
     let borrowing = await Borrowing.findById(id, { __v: 0 }, null);
     if (!borrowing) {
-        res.status(404).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Borrowing not found!] - [404]`);
+        return res.status(404).send({
             message: "Borrowing not found!"
         });
-        return;
     }
 
     if (req.user._id.toString() !== borrowing.user_id.toString()) {
-        res.status(401).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden!] - [401]`);
+        return res.status(401).send({
             message: "Forbidden!"
         });
-        return;
     }
 
     if (borrowing.status === 'returned') {
-        res.status(400).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Borrowing already returned!] - [400]`);
+        return res.status(400).send({
             message: "Borrowing already returned!"
         });
-        return;
     }
 
     borrowing.actual_return_date = new Date();
@@ -167,22 +174,26 @@ exports.return = async (req, res) => {
                                 book.quantity++;
                                 book.save();
                             });
-                            res.send(data);
+                            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowing returned successfully.] - [200]`);
+                            return res.status(200).send(data);
                         })
                         .catch(err => {
-                            res.status(500).send({
+                            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while returning the Borrowing.] - [500]`);
+                            return res.status(500).send({
                                 message: err.message || "Some error occurred while returning the Borrowing."
                             });
                         });
                 })
                 .catch(err => {
-                    res.status(500).send({
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while returning the Borrowing.] - [500]`);
+                    return res.status(500).send({
                         message: err.message || "Some error occurred while returning the Borrowing."
                     });
                 });
         })
         .catch(err => {
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while returning the Borrowing.] - [500]`);
+            return res.status(500).send({
                 message: err.message || "Some error occurred while returning the Borrowing."
             });
         });
@@ -198,17 +209,17 @@ exports.details = async (req, res) => {
 
     let borrowing = await Borrowing.findById(id, { __v: 0 }, null);
     if (!borrowing) {
-        res.status(404).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Borrowing not found!] - [404]`);
+        return res.status(404).send({
             message: "Borrowing not found!"
         });
-        return;
     }
 
     if (req.user._id.toString() !== borrowing.user_id.toString()) {
-        res.status(401).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden! when trying to get borrowing details] - [401]`);
+        return res.status(401).send({
             message: "Forbidden!"
         });
-        return;
     }
 
     Borrowing_Details.find({ borrowing_id: id }, { __v: 0 }, null)
@@ -219,20 +230,21 @@ exports.details = async (req, res) => {
             });
             Promise.all(books)
                 .then(data => {
-                    res.send(data);
+                    writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowing Details retrieved successfully.] - [200]`);
+                    return res.status(200).send(data);
                 })
                 .catch(err => {
                     if (process.env.NODE_ENV === 'development')
                         console.log(err);
-                    res.status(500).send({
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+                    return res.status(500).send({
                         message: "Some error occurred while retrieving the Borrowing Details."
                     });
                 });
         })
         .catch(err => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(err);
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+            return res.status(500).send({
                 message: "Some error occurred while retrieving the Borrowing Details."
             });
         });
@@ -256,10 +268,12 @@ exports.findAll = (req, res) => {
     }
     Borrowing.find(condition, { __v: 0 }, null)
         .then(data => {
-            res.send(data);
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowings retrieved successfully.] - [200]`);
+            return res.status(200).send(data);
         })
         .catch(err => {
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving borrowings.] - [500]`);
+            return res.status(500).send({
                 message: err.message || "Some error occurred while retrieving borrowings."
             });
         });
@@ -275,10 +289,10 @@ exports.findOne = async (req, res) => {
 
     let borrowing = await Borrowing.findById(id, { __v: 0 }, null);
     if (!borrowing) {
-        res.status(404).send({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Borrowing not found!] - [404]`);
+        return res.status(404).send({
             message: "Borrowing not found!"
         });
-        return;
     }
 
 
@@ -290,20 +304,19 @@ exports.findOne = async (req, res) => {
             });
             Promise.all(books)
                 .then(data => {
-                    res.send(data);
+                    writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Borrowing Details retrieved successfully.] - [200]`);
+                    res.status(200).send(data);
                 })
                 .catch(err => {
-                    if (process.env.NODE_ENV === 'development')
-                        console.log(err);
-                    res.status(500).send({
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+                    return res.status(500).send({
                         message: "Some error occurred while retrieving the Borrowing Details."
                     });
                 });
         })
         .catch(err => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(err);
-            res.status(500).send({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Some error occurred while retrieving the Borrowing Details.] - [500]`);
+            return res.status(500).send({
                 message: "Some error occurred while retrieving the Borrowing Details."
             });
         });

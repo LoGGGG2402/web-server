@@ -2,14 +2,14 @@ let jwt = require('../helper/jwt.helper');
 let bcrypt = require('bcrypt');
 let {isEmail, isStrongPassword} = require('validator');
 let sendEmail = require('../helper/email.helper');
-const GoogleRecaptcha = require('google-recaptcha');
 
 //for CSRF token
 let csrf = require('../helper/csrf.helper');
 
 let User = require('../models/user.model');
 let axios = require('axios');
-let verifyAccessToken = require('../helper/jwt.helper').verifyAccessToken;
+
+let writeLog = require('../helper/log.helper');
 
 
 // Support functions
@@ -32,30 +32,35 @@ const generateToken = async (user) => {
 // Response body: { message, username, _id, accessToken, refreshToken }
 exports.login = async (req, res) => {
     const { email, password,remember, recaptcha } = req.body;
-
     // Verify reCAPTCHA
     if (recaptcha) {
         try {
             const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
             const { success } = response.data;
             if (!success) {
+                writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
                 return res.status(400).json({ message: 'reCAPTCHA verification failed' });
             }
+            writeLog.info(`[${req.clientIp}] reCAPTCHA verification successful`);
         } catch (error) {
-            console.error('reCAPTCHA verification error:', error);
+            writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
             return res.status(500).json({ message: 'Internal server error' });
         }
     }
+
     // Verify email and password
     if (!email || !password) {
+        writeLog.error(`[${req.clientIp}] Missing required fields`);
         return res.status(400).json({message: 'Missing required fields'});
     }
     User.findOne({email: email}, null, null)
         .then(async (user) => {
             if (!user) {
-                return res.status(404).json({message: 'User not found'});
+                writeLog.error(`[${req.clientIp}] ${email} not found`);
+                return res.status(404).json({message: `${email} Invalid credentials`});
             }
             if (user.waits_until > Date.now()) {
+                writeLog.error(`[${req.clientIp}] ${user.email} Too many login attempts. Try again later`);
                 return res.status(429).json({message: 'Too many login attempts. Try again later'});
             }
             let isMatch = await bcrypt.compare(password, user.password);
@@ -65,10 +70,12 @@ exports.login = async (req, res) => {
                     user.waits_until = Date.now() + Math.pow(2, user.login_attempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
                 }
                 await user.save();
-                return res.status(401).json({message: 'Invalid credentials'});
+                writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
+                return res.status(401).json({message: `${user.email} Invalid credentials`});
             }
             if (user.status.toString() !== 'active') {
-                return res.status(403).json({message: `User is ${user.status}`});
+                writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
+                return res.status(403).json({message: `${user.email} is ${user.status}`});
             }
             user.login_attempts = 0;
 
@@ -78,8 +85,6 @@ exports.login = async (req, res) => {
 
             //for CSRF token
             let csrfToken = await csrf.generateCSRFToken();
-
-
 
             let options = {
                 //httpOnly: true,
@@ -93,7 +98,7 @@ exports.login = async (req, res) => {
             //for CSRF token
             res.cookie('csrfToken', csrfToken, options);
 
-
+            writeLog.info(`[${req.clientIp}] ${user.email} logged in`);
             return res.status(200).json({
                 message: 'Login successful',
                 username: user.username,
@@ -104,8 +109,7 @@ exports.login = async (req, res) => {
             });
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] ${error.message}`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -117,12 +121,15 @@ exports.login = async (req, res) => {
 exports.register = async (req, res) => {
     let {username, password, email} = req.body;
     if (!username || !password || !email ) {
+        writeLog.error(`[${req.clientIp}] Missing required fields`);
         return res.status(400).json({message: 'Missing required fields'});
     }
     if (!isEmail(email)) {
+        writeLog.error(`[${req.clientIp}] Invalid email address`);
         return res.status(400).json({message: 'Invalid email address'});
     }
     if (!isStrongPassword(password)) {
+        writeLog.error(`[${req.clientIp}] Password is too weak`);
         return res.status(400).json({message: 'Password is too weak'});
     }
     try {
@@ -130,11 +137,13 @@ exports.register = async (req, res) => {
             email: email
         }, null, null);
         if (user) {
+            writeLog.error(`[${req.clientIp}] ${email} already exists`);
             return res.status(400).json({message: 'Email already exists'});
         }
         bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(password, salt, async (err, hash) => {
                 if (err) {
+                    writeLog.error(`[${req.clientIp}] ${err.message}`);
                     return res.status(500).json({message: err.message});
                 }
                 let newUser = new User({
@@ -151,10 +160,12 @@ exports.register = async (req, res) => {
                 let text = `Click on the link to verify your account: ${verificationLink}`;
                 let html = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
                 sendEmail(email, subject, text, html).then()
+                writeLog.info(`[${req.clientIp}] ${email} registered`);
                 return res.status(201).json({message: 'Please check your email to verify your account'});
             });
         });
     } catch (error) {
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(500).json({message: error.message});
     }
 }
@@ -178,13 +189,12 @@ exports.logout = async (req, res) => {
             //For CSRF token
             res.clearCookie('csrfToken');
 
-
+            writeLog.info(`[${req.clientIp}] ${req.user.email} logged out`);
             return res.status(200).json({message: 'Logout successful'});
 
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] ${error.message}`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -194,15 +204,18 @@ exports.logout = async (req, res) => {
 exports.refreshToken = async (req, res) => {
     let refreshToken = req.cookies.refreshToken || req.headers['x-refresh-token'];
     if (!refreshToken) {
+        writeLog.error(`[${req.clientIp}] Refresh token is missing`);
         return res.status(400).json({message: 'Refresh token is required'});
     }
     try {
         let payload = await jwt.verifyRefreshToken(refreshToken);
         let user = await User.findById(payload, null, null);
         if (!user) {
+            writeLog.error(`[${req.clientIp}] User not found in refresh token`);
             return res.status(404).json({message: 'User not found'});
         }
         if (user.refreshToken !== refreshToken) {
+            writeLog.error(`[${req.clientIp}] Invalid refresh token`);
             return res.status(403).json({message: 'Invalid refresh token'});
         }
         let tokens = await generateToken(user);
@@ -221,11 +234,11 @@ exports.refreshToken = async (req, res) => {
         options = {
             secure: process.env.NODE_ENV === 'production'
         }
-        res.cookie('csrfToken', csrfToken);
+        res.cookie('csrfToken', csrfToken, options);
+        writeLog.info(`[${req.clientIp}] Token refreshed`);
         return res.status(200).json({message: 'Token refreshed'});
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(403).json({message: 'Forbidden'});
     }
 }
@@ -237,9 +250,11 @@ exports.refreshToken = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     let {email} = req.body;
     if (!email) {
+        writeLog.error(`[${req.clientIp}] Email is required`);
         return res.status(400).json({message: 'Email is required'});
     }
     if (!isEmail(email)) {
+        writeLog.error(`[${req.clientIp}] Invalid email address`);
         return res.status(400).json({message: 'Invalid email address'});
     }
     try {
@@ -247,6 +262,7 @@ exports.forgotPassword = async (req, res) => {
             email: email
         }, null, null);
         if (!user) {
+            writeLog.error(`[${req.clientIp}] ${email} not found`);
             return res.status(200).json({message: 'Reset link sent to your email'});
         }
         // send email with reset link
@@ -256,10 +272,10 @@ exports.forgotPassword = async (req, res) => {
         let text = `Click on the link to reset your password: ${resetLink}`;
         let html = `<p>Click <a href="${resetLink}">here</a> to reset your password</p>`;
         sendEmail(email, subject, text, html).then()
+        writeLog.info(`[${req.clientIp}] Reset link sent to ${email}`);
         return res.status(200).json({message: 'Reset link sent to your email'});
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(500).json({message: 'Internal server error'});
     }
 }
@@ -271,27 +287,32 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     let {password} = req.body;
     if (!password) {
+        writeLog.error(`[${req.clientIp}] Password is required`);
         return res.status(400).json({message: 'Password is required'});
     }
     if (!isStrongPassword(password)) {
+        writeLog.error(`[${req.clientIp}] Password is too weak`);
         return res.status(400).json({message: 'Password is too weak'});
     }
     try {
         let payload = await jwt.verifyResetToken(req.params.token);
         let user = await User.findById(payload, null, null);
         if (!user) {
+            writeLog.error(`[${req.clientIp}] User not found in reset password`);
             return res.status(404).json({message: 'User not found'});
         }
 
         for (let old_password of user.oldPasswords) {
             let isMatch = await bcrypt.compare(password, old_password);
             if (isMatch) {
+                writeLog.error(`[${req.clientIp}] Password already used`);
                 return res.status(400).json({message: 'Password already used'});
             }
         }
         bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(password, salt, async (err, hash) => {
                 if (err) {
+                    writeLog.error(`[${req.clientIp}] ${err.message}`);
                     return res.status(500).json({message: err.message});
                 }
                 await User.findByIdAndUpdate(
@@ -305,12 +326,12 @@ exports.resetPassword = async (req, res) => {
                     },
                     null
                 );
+                writeLog.info(`[${req.clientIp}] Password reset successful`);
                 return res.status(200).json({message: 'Password reset successful'});
             });
         });
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(403).json({message: 'Forbidden'});
     }
 }
@@ -327,14 +348,14 @@ exports.verifyEmail = async (req, res) => {
             {new: true}
         );
         if (!user) {
-
+            writeLog.error(`[${req.clientIp}] User not found in verify email`);
             return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
         }
+        writeLog.info(`[${req.clientIp}] email verified`);
         return res.redirect(`${process.env.FRONTEND_URL}/final-register/success`);
     }
     catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
     }
 }
@@ -344,6 +365,7 @@ exports.activateAccount = async (req, res) => {
     try {
         let user = await User.find({email: req.body.email});
         if (!user) {
+            writeLog.error(`[${req.clientIp}] User not found in activate account`);
             return res.status(404).json({message: 'User not found'});
         }
         // send email with verification link to activate account
@@ -354,12 +376,12 @@ exports.activateAccount = async (req, res) => {
         let text = `Click on the link to verify your account: ${verificationLink}`;
         let html = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
         sendEmail(req.body.email , subject, text, html).then()
+        writeLog.info(`[${req.clientIp}] ${req.body.email} registered`);
         return res.status(201).json({message: 'Please check your email to verify your account'});
 
 
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(500).json({message: 'Internal server error'});
     }
 }

@@ -3,6 +3,8 @@ let cloudinary = require('../helper/cloudinary.helper');
 const bcrypt = require("bcrypt");
 const fs = require("node:fs");
 
+let writeLog = require('../helper/log.helper');
+
 
 // User Functions Controllers
 
@@ -12,6 +14,7 @@ const fs = require("node:fs");
 // Response body: { username, email, name, phone, address, role, join_date, status, avatar, date_of_birth, gender }\
 exports.getProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({message: 'Forbidden'});
     }
     try {
@@ -19,12 +22,13 @@ exports.getProfile = async (req, res) => {
             .select('username name email name phone address role join_date status avatar date_of_birth gender');
 
         if (!user) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
             return res.status(404).json({message: 'User not found'});
         }
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Get user profile] - [200]`);
         return res.status(200).json(user);
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
         return res.status(500).json({message: 'Internal server error'});
     }
 }
@@ -34,6 +38,7 @@ exports.getProfile = async (req, res) => {
 // Request body: { username, email, name, phone, address, date_of_birth, gender}
 exports.updateProfile = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({message: 'Forbidden'});
     }
     let update = {};
@@ -66,13 +71,14 @@ exports.updateProfile = async (req, res) => {
     ).select('username name email name phone address role join_date status avatar date_of_birth gender')
         .then((user) => {
             if (!user) {
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
                 return res.status(404).json({message: 'User not found'});
             }
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Update user profile] - [200]`);
             return res.status(200).json(user);
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -82,15 +88,18 @@ exports.updateProfile = async (req, res) => {
 // Request body: { avatar }
 exports.updateAvatar = async (req, res) => {
     if (!(req.user._id.toString() === req.params.userId)) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({message: 'Forbidden'});
     }
     let location = req.file?.path;
     if (!location) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
     try {
         let avatar = await cloudinary(location);
         if (!avatar.url) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         }
 
@@ -100,13 +109,14 @@ exports.updateAvatar = async (req, res) => {
             {new: true}
         )
         if (!user) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
             return res.status(404).json({message: 'User not found'});
         }
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Update user avatar] - [200]`);
         return res.status(200).json(user.avatar);
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
         fs.unlinkSync(location);
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
         return res.status(500).json({message: 'Internal server error'});
     }
 
@@ -118,29 +128,35 @@ exports.updateAvatar = async (req, res) => {
 // Request body: { current_password, new_password }
 exports.changePassword = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({message: 'Forbidden'});
     }
     if (!req.body.current_password || !req.body.new_password) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
     try {
         let user = await User.findById(req.user._id, null, null);
         if (!user) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
             return res.status(404).json({message: 'User not found'});
         }
         let isMatch = await bcrypt.compare(req.body.current_password, user.password);
         if (!isMatch) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid current password] - [400]`);
             return res.status(400).json({message: 'Invalid current password'});
         }
         for (let old_password of user.oldPasswords) {
             isMatch = await bcrypt.compare(req.body.new_password, old_password);
             if (isMatch) {
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Password already used] - [400]`);
                 return res.status(400).json({message: 'Password already used'});
             }
         }
         bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(req.body.new_password, salt, async (err, hash) => {
                 if (err) {
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
                     return res.status(500).json({message: err.message});
                 }
                 await User.findByIdAndUpdate(
@@ -151,12 +167,12 @@ exports.changePassword = async (req, res) => {
                     },
                     null
                 );
+                writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Password changed successfully] - [200]`);
                 return res.status(200).json({message: 'Password changed successfully'});
             });
         });
     } catch (error) {
-        if (process.env.NODE_ENV === 'development')
-            console.log(error);
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
         return res.status(500).json({message: 'Internal server error'});
     }
 }
@@ -166,26 +182,30 @@ exports.changePassword = async (req, res) => {
 // Request body: {password }
 exports.deleteUser = async (req, res) => {
     if (req.user._id.toString() !== req.params.userId) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({ message: 'Forbidden' });
     }
     if (!req.body.password) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({ message: 'Missing required fields' });
     }
     let user = await User.findById(req.user._id, null, null);
     if (!user) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
         return res.status(404).json({ message: 'User not found' });
     }
     let isMatch = await bcrypt.compare(req.body.password, user.password);
     if (!isMatch) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid password] - [400]`);
         return res.status(400).json({ message: 'Invalid password' });
     } else {
         User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [User deleted successfully] - [200]`);
             return res.status(200).json({message: 'User deleted successfully'});
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
     }
@@ -228,11 +248,11 @@ exports.getAllUsers = async (req, res) => {
     User.find(condition, null, null)
         .select('-password')
         .then((users) => {
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Get all users] - [200]`);
             return res.status(200).json(users);
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 
@@ -247,13 +267,14 @@ exports.getUserById = async (req, res) => {
         .select('-password -refreshToken')
         .then((user) => {
             if (!user) {
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
                 return res.status(404).json({message: 'User not found'});
             }
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Get user by id] - [200]`);
             return res.status(200).json(user);
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -264,11 +285,11 @@ exports.getUserById = async (req, res) => {
 exports.deleteUserByAdmin = async (req, res) => {
     User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [User deleted successfully] - [200]`);
             return res.status(200).json({message: 'User deleted successfully'});
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -279,6 +300,7 @@ exports.deleteUserByAdmin = async (req, res) => {
 // Request body: { status }
 exports.changeStatus = async (req, res) => {
     if (!req.body.status) {
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
 
@@ -289,13 +311,14 @@ exports.changeStatus = async (req, res) => {
     )
         .then((user) => {
             if (!user) {
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
                 return res.status(404).json({message: 'User not found'});
             }
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Change user status] - [200]`);
             return res.status(200).json(user);
         })
         .catch((error) => {
-            if (process.env.NODE_ENV === 'development')
-                console.log(error);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 

@@ -11,6 +11,9 @@ const window = new JSDOM('').window;
 // Initialize DOMPurify with the JSDOM window
 const DOMPurify = createDOMPurify(window);
 
+let writeLog = require('../helper/log.helper');
+
+
 /**
  * Book(title, author, description, cover, publication_date, publisher, quantity, language, isbn, average_rating,
  * total_ratings, reviews, categories)
@@ -53,10 +56,12 @@ exports.findAll = (req, res) => {
         .sort({title: 1})
         .select('title author cover publication_date publisher quantity language isbn genre tags average_rating total_ratings')
         .then(books => {
-            res.status(200).json(books);
+            writeLog.info(`[${req.clientIp}] - [Books retrieved successfully!] - [200]`)
+            return res.status(200).json(books);
         })
         .catch(err => {
-            res.status(500).json({
+            writeLog.error(`[${req.clientIp}] - [${err.message}] - [500]`)
+            return res.status(500).json({
                 message: err.message || "Some error occurred while retrieving books."
             });
         });
@@ -73,6 +78,7 @@ exports.findAll = (req, res) => {
 exports.create = async (req, res) => {
     // Validate request
     if (!req.body.title) {
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book title is missing] - [400]`)
         return res.status(400).json({
             message: "Book title can not be empty"
         });
@@ -80,6 +86,7 @@ exports.create = async (req, res) => {
 
     // upload cover image
     if (!req.file) {
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book cover image is missing] - [400]`)
         return res.status(400).json({
             message: "Book cover image is required"
         });
@@ -115,6 +122,7 @@ exports.create = async (req, res) => {
             }
         } catch (err) {
             fs.unlinkSync(req.file.path);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
             return res.status(500).json({
                 message: err.message || "Some error occurred while creating the Book."
             });
@@ -129,6 +137,7 @@ exports.create = async (req, res) => {
         let cover = await uploadOnCloudinary(req.file.path);
         if (!cover) {
             // delete uploaded image
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Error uploading cover image] - [500]`)
             return res.status(500).json({
                 message: "Some error occurred while creating the Book."
             });
@@ -139,11 +148,11 @@ exports.create = async (req, res) => {
         // Create a Book
         const book = new Book(book_data);
         const savedBook = await book.save();
-        res.status(201).json(savedBook);
+        return res.status(201).json(savedBook);
     } catch (err) {
         // delete uploaded image
         fs.unlinkSync(req.file.path);
-        res.status(500).json({
+        return res.status(500).json({
             message: err.message || "Some error occurred while creating the Book."
         });
     }
@@ -160,18 +169,21 @@ exports.findOne = (req, res) => {
         .populate('reviews')
         .then(book => {
             if (!book) {
+                writeLog.info(`[${req.clientIp}] - [Book not found with id ${req.params.bookId}] - [404]`)
                 return res.status(404).json({
                     message: "Book not found with id " + req.params.bookId
                 });
             }
-            res.status(200).json(book);
+            return res.status(200).json(book);
         })
         .catch(err => {
             if (err.kind === 'ObjectId') {
+                writeLog.error(`[${req.clientIp}] - [Error retrieving book with id ${req.params.bookId}] - [500]`)
                 return res.status(404).json({
                     message: "Book not found with id " + req.params.bookId
                 });
             }
+            writeLog.error(`[${req.clientIp}] - [Error retrieving book with id ${req.params.bookId}] - [500]`)
             return res.status(500).json({
                 message: "Error retrieving book with id " + req.params.bookId
             });
@@ -190,6 +202,7 @@ exports.update = async (req, res) => {
     try {
         // Validate Request
         if (!req.body.title) {
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book title is missing] - [400]`)
             return res.status(400).json({
                 message: "Book title can not be empty"
             });
@@ -234,7 +247,7 @@ if (req.body.categories) {
         update.categories = categoryIds;
     } catch (err) {
         // Handle error
-        console.error(err);
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
         return res.status(500).json({
             message: err.message || "Some error occurred while processing categories."
         });
@@ -247,17 +260,18 @@ if (req.body.categories) {
         let updatedBook = await Book.findByIdAndUpdate(req.params.bookId, update, null).exec();
 
         if (!updatedBook) {
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book not found with id ${req.params.bookId}] - [404]`)
             return res.status(404).json({
                 message: "Book not found with id " + req.params.bookId
             });
         }
-
-        res.status(200).json({
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book updated successfully!] - [200]`)
+        return res.status(200).json({
             message: "Book updated successfully!"
         });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
+        return res.status(500).json({
             message: err.message || "Some error occurred while updating the Book."
         });
     }
@@ -274,18 +288,22 @@ exports.delete = (req, res) => {
     Book.deleteOne({_id: req.params.bookId})
         .then(book => {
             if (!book) {
+                writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book not found with id ${req.params.bookId}] - [404]`)
                 return res.status(404).json({
                     message: "Book not found with id " + req.params.bookId
                 });
             }
-            res.status(200).json({message: "Book deleted successfully!"});
+            writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book deleted successfully!] - [200]`)
+            return res.status(200).json({message: "Book deleted successfully!"});
         })
         .catch(err => {
             if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+                writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book not found with id ${req.params.bookId}] - [404]`)
                 return res.status(404).json({
                     message: "Book not found with id " + req.params.bookId
                 });
             }
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Could not delete book with id ${req.params.bookId}] - [500]`)
             return res.status(500).json({
                 message: "Could not delete book with id " + req.params.bookId
             });
@@ -304,6 +322,7 @@ exports.addReview = (req, res) => {
 
     // Validate Request
     if (!req.body.rating) {
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Rating is missing] - [400]`)
         return res.status(400).json({
             message: "Rating can not be empty"
         });
@@ -311,6 +330,7 @@ exports.addReview = (req, res) => {
     let cleanText = DOMPurify.sanitize(req.body.text);
     console.log(cleanText)
     if (cleanText !== req.body.text) {
+        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Invalid comment] - [201]`)
         return res.status(201).json({
             message: "Invalid comment"
         });
@@ -333,20 +353,22 @@ exports.addReview = (req, res) => {
             }, null)
                 .then(book => {
                     if (!book) {
+                        writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Book not found with id ${req.params.bookId}] - [404]`)
                         return res.status(404).json({
                             message: "Book not found with id " + req.params.bookId
                         });
                     }
-                    res.status(200).json(review);
+                    writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Review added successfully!] - [200]`)
+                    return res.status(200).json(review);
                 })
                 .catch(err => {
-                    if (process.env.NODE_ENV === 'development')
-                        console.log(err);
-                    res.status(500).json('Error updating book with id ' + req.params.bookId);
+                    writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [Error updating book with id ${req.params.bookId}] - [500]`)
+                    return res.status(500).json('Error updating book with id ' + req.params.bookId);
                 });
         })
         .catch(err => {
-            res.status(500).json({
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [${req.user.role}] - [${err.message}] - [500]`)
+            return res.status(500).json({
                 message: err.message || "Some error occurred while adding review."
             });
         });
@@ -361,10 +383,12 @@ exports.addReview = (req, res) => {
 exports.findAllReviews = (req, res) => {
     Review.find({book_id: req.params.bookId}, null, null)
         .then(reviews => {
-            res.status(200).json(reviews);
+            writeLog.info(`[${req.clientIp}] - [Reviews retrieved successfully!] - [200]`)
+            return res.status(200).json(reviews);
         })
         .catch(err => {
-            res.status(500).json({
+            writeLog.error(`[${req.clientIp}] - [${err.message}] - [500]`)
+            return res.status(500).json({
                 message: err.message || "Some error occurred while retrieving reviews."
             });
         });
@@ -380,16 +404,19 @@ exports.deleteReview = (req, res) => {
     Review.findByIdAndDelete(req.params.reviewId, null)
         .then(review => {
             if (!review) {
+                writeLog.info(`[${req.clientIp}] - [Review not found with id ${req.params.reviewId}] - [404]`)
                 return res.status(404).json({
                     message: "Review not found with id " + req.params.reviewId
                 });
             }
             if (review.user_id !== req.user._id) {
+                writeLog.info(`[${req.clientIp}] - [You are not authorized to delete this review] - [403]`)
                 return res.status(403).json({
                     message: "You are not authorized to delete this review"
                 });
             }
             if (review.book_id !== req.params.bookId) {
+                writeLog.info(`[${req.clientIp}] - [This review does not belong to this book] - [403]`)
                 return res.status(403).json({
                     message: "This review does not belong to this book"
                 });
@@ -400,24 +427,29 @@ exports.deleteReview = (req, res) => {
             }, null)
                 .then(book => {
                     if (!book) {
+                        writeLog.info(`[${req.clientIp}] - [Book not found with id ${req.params.bookId}] - [404]`)
                         return res.status(404).json({
                             message: "Book not found with id " + req.params.bookId
                         });
                     }
-                    res.status(200).json({message: "Review deleted successfully!"});
+                    writeLog.info(`[${req.clientIp}] - [Review deleted successfully!] - [200]`)
+                    return res.status(200).json({message: "Review deleted successfully!"});
                 })
                 .catch(err => {
                     if (process.env.NODE_ENV === 'development')
                         console.log(err);
-                    res.status(500).json('Error updating book with id ' + req.params.bookId);
+                    writeLog.error(`[${req.clientIp}] - [Error updating book with id ${req.params.bookId}] - [500]`)
+                    return res.status(500).json('Error updating book with id ' + req.params.bookId);
                 });
         })
         .catch(err => {
             if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+                writeLog.info(`[${req.clientIp}] - [Review not found with id ${req.params.reviewId}] - [404]`)
                 return res.status(404).json({
                     message: "Review not found with id " + req.params.reviewId
                 });
             }
+            writeLog.error(`[${req.clientIp}] - [Could not delete review with id ${req.params.reviewId}] - [500]`)
             return res.status(500).json({
                 message: "Could not delete review with id " + req.params.reviewId
             });
@@ -435,6 +467,7 @@ exports.deleteReview = (req, res) => {
     Review.findByIdAndDelete(req.params.reviewId, null)
         .then(review => {
             if (!review) {
+                writeLog.info(`[${req.clientIp}] - [Review not found with id ${req.params.reviewId}] - [404]`)
                 return res.status(404).json({
                     message: "Review not found with id " + req.params.reviewId
                 });
@@ -445,11 +478,13 @@ exports.deleteReview = (req, res) => {
             }, null)
                 .then(book => {
                     if (!book) {
+                        writeLog.info(`[${req.clientIp}] - [Book not found with id ${review.book_id}] - [404]`)
                         return res.status(404).json({
                             message: "Book not found with id " + review.book_id
                         });
                     }
-                    res.status(200).json({message: "Review deleted successfully!"});
+                    writeLog.info(`[${req.clientIp}] - [Review deleted successfully!] - [200]`)
+                    return res.status(200).json({message: "Review deleted successfully!"});
                 })
                 .catch(err => {
                     if (process.env.NODE_ENV === 'development')
@@ -459,10 +494,12 @@ exports.deleteReview = (req, res) => {
         })
         .catch(err => {
             if (err.kind === 'ObjectId' || err.name === 'NotFound') {
+                writeLog.info(`[${req.clientIp}] - [Review not found with id ${req.params.reviewId}] - [404]`)
                 return res.status(404).json({
                     message: "Review not found with id " + req.params.reviewId
                 });
             }
+            writeLog.error(`[${req.clientIp}] - [Could not delete review with id ${req.params.reviewId}] - [500]`)
             return res.status(500).json({
                 message: "Could not delete review with id " + req.params.reviewId
             });

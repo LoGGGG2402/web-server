@@ -139,7 +139,7 @@ exports.create = async (req, res) => {
     if (req.body.categories) {
         try {
             const categoriesArray = Array.isArray(req.body.categories) ? req.body.categories : [req.body.categories];
-            let categoriesData = await Category.find({ name: { $in: categoriesArray } });
+            let categoriesData = await Category.find({ name: { $in: categoriesArray } }, null, null);
             book_data.categories = categoriesData.map(category => category._id);
             let existingCategoryNames = categoriesData.map(category => category.name);
             let newCategories = categoriesArray.filter(category => !existingCategoryNames.includes(category));
@@ -282,7 +282,7 @@ exports.update = async (req, res) => {
                 const categoriesArray = Array.isArray(req.body.categories) ? req.body.categories : [req.body.categories];
 
                 // Find categories matching the names in categoriesArray
-                let categoryData = await Category.find({name: {$in: categoriesArray}}).exec();
+                let categoryData = await Category.find({name: {$in: categoriesArray}}, null, null);
 
                 // Get category IDs
                 let categoryIds = categoryData.map(data => data._id);

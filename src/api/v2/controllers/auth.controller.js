@@ -346,7 +346,7 @@ exports.verifyEmail = async (req, res) => {
         let user = await User.findByIdAndUpdate(
             payload,
             {status: 'active'},
-            {new: true}
+            null
         );
         if (!user) {
             writeLog.error(`[${req.clientIp}] User not found in verify email`);
@@ -364,7 +364,7 @@ exports.verifyEmail = async (req, res) => {
 /// active account
 exports.activateAccount = async (req, res) => {
     try {
-        let user = await User.find({email: req.body.email});
+        let user = await User.find({email: {$eq: req.body.email}}, null, null);
         if (!user) {
             writeLog.error(`[${req.clientIp}] User not found in activate account`);
             return res.status(404).json({message: 'User not found'});

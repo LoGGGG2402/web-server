@@ -149,7 +149,7 @@ exports.updateAvatar = async (req, res) => {
         const user = await User.findByIdAndUpdate(
             req.user._id,
             {avatar: avatar.url},
-            {new: true}
+            null
         )
         if (!user) {
             writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [User not found] - [404]`);
@@ -354,7 +354,7 @@ exports.changeStatus = async (req, res) => {
     User.findByIdAndUpdate(
         req.params.userId,
         {status: req.body.status},
-        {new: true}
+        null
     )
         .then((user) => {
             if (!user) {

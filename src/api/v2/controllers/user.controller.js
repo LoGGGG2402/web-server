@@ -78,7 +78,7 @@ exports.updateProfile = async (req, res) => {
             return res.status(200).json(user);
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -87,7 +87,7 @@ exports.updateProfile = async (req, res) => {
 // PUT /api/v2/user/:userId/avatar
 // Request body: { avatar }
 exports.updateAvatar = async (req, res) => {
-    if (!(req.user._id.toString() === req.params.userId)) {
+    if (req.user._id.toString() !== req.params.userId) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({message: 'Forbidden'});
     }
@@ -205,7 +205,7 @@ exports.deleteUser = async (req, res) => {
             return res.status(200).json({message: 'User deleted successfully'});
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
     }
@@ -252,7 +252,7 @@ exports.getAllUsers = async (req, res) => {
             return res.status(200).json(users);
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 
@@ -274,7 +274,7 @@ exports.getUserById = async (req, res) => {
             return res.status(200).json(user);
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -289,7 +289,7 @@ exports.deleteUserByAdmin = async (req, res) => {
             return res.status(200).json({message: 'User deleted successfully'});
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 }
@@ -318,7 +318,7 @@ exports.changeStatus = async (req, res) => {
             return res.status(200).json(user);
         })
         .catch((error) => {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500]`);
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
             return res.status(500).json({message: 'Internal server error'});
         });
 

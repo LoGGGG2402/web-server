@@ -228,6 +228,21 @@ exports.changePassword = async (req, res) => {
 // DELETE /api/v2/user/:userId
 // Request body: {password }
 exports.deleteUser = async (req, res) => {
+    const { recaptcha } = req.body;
+    if (recaptcha) {
+        try {
+            const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+            const { success } = response.data;
+            if (!success) {
+                return res.status(400).json({ message: 'reCAPTCHA verification failed' });
+            }
+        } catch (error) {
+            console.error('reCAPTCHA verification error:', error);
+            return res.status(500).json({ message: 'Internal server error' });
+        }
+    } else {
+        return res.status(400).json({ message: 'Missing reCAPTCHA' });
+    }
     if (req.user._id.toString() !== req.params.userId) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Forbidden] - [403]`);
         return res.status(403).json({ message: 'Forbidden' });
@@ -342,6 +357,8 @@ exports.deleteUserByAdmin = async (req, res) => {
             console.error('reCAPTCHA verification error:', error);
             return res.status(500).json({ message: 'Internal server error' });
         }
+    } else {
+        return res.status(400).json({ message: 'Missing reCAPTCHA' });
     }
     User.findByIdAndDelete(req.params.userId, null)
         .then(() => {
@@ -359,7 +376,8 @@ exports.deleteUserByAdmin = async (req, res) => {
 // PUT /api/v2/users/admin/:userId
 // Request body: { status, role}
 exports.changeStatus = async (req, res) => {
-    if (!req.body.status || !req.body.role) {
+    // if missing both status and role
+    if (!req.body.status && !req.body.role) {
         writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing required fields] - [400]`);
         return res.status(400).json({message: 'Missing required fields'});
     }
@@ -375,6 +393,11 @@ exports.changeStatus = async (req, res) => {
         } catch (error) {
             console.error('reCAPTCHA verification error:', error);
             return res.status(500).json({ message: 'Internal server error' });
+        }
+    } else {
+        if (req.body.role) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing reCAPTCHA] - [400]`);
+            return res.status(400).json({ message: 'Missing reCAPTCHA' });
         }
     }
 

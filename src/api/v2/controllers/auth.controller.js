@@ -32,21 +32,6 @@ const generateToken = async (user) => {
 // Response body: { message, username, _id, accessToken, refreshToken }
 exports.login = async (req, res) => {
     const { email, password, remember, recaptcha } = req.body;
-    // Verify reCAPTCHA
-    if (recaptcha) {
-        try {
-            const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
-            const { success } = response.data;
-            if (!success) {
-                writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-                return res.status(400).json({ message: 'reCAPTCHA verification failed' });
-            }
-            writeLog.info(`[${req.clientIp}] reCAPTCHA verification successful`);
-        } catch (error) {
-            writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-            return res.status(500).json({ message: 'Internal server error' });
-        }
-    }
 
     // Verify email and password
     if (!email || !password) {
@@ -72,17 +57,36 @@ exports.login = async (req, res) => {
                 }
                 await user.save();
                 writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
-                return res.status(401).json({message: `Invalid credentials`});
+                return res.status(401).json({message: `Invalid credentials`, attempts: user.falseLoginAttempts});
             }
             if (user.status.toString() !== 'active') {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});
             }
+            if (user.falseLoginAttempts >= 5) {
+                // Verify reCAPTCHA
+                if (recaptcha) {
+                    try {
+                        const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+                        const {success} = response.data;
+                        if (!success) {
+                            writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                            return res.status(400).json({message: 'reCAPTCHA verification failed'});
+                        }
+                        writeLog.info(`[${req.clientIp}] reCAPTCHA verification successful`);
+                    } catch (error) {
+                        writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                        return res.status(500).json({message: 'Internal server error'});
+                    }
+                }else {
+                    writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                    return res.status(400).json({message: 'reCAPTCHA verification failed'});
+                }
+            }
             let device = `${req.clientIp} - ${req.headers['User-Agent']}`;
-
             if (user.devices.indexOf(device) === -1) {
                 // send email with verification link to verify new device
-                let verificationToken = await jwt.signDeviceVerificationToken(user._id, device);
+                let verificationToken = await jwt.signDeviceVerificationToken({_id: user._id, device: device});
                 let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-device/${verificationToken}`;
                 let subject = 'Device Verification';
                 let text = `Click on the link to verify new device: ${verificationLink}`;

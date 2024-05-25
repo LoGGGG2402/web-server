@@ -57,7 +57,7 @@ exports.login = async (req, res) => {
         .then(async (user) => {
             if (!user) {
                 writeLog.error(`[${req.clientIp}] ${email} not found`);
-                return res.status(404).json({message: `${email} Invalid credentials`});
+                return res.status(404).json({message: `Email not found`});
             }
             if (user.waits_until > Date.now()) {
                 let message = 'Too many login attempts. Please wait for '+ Math.max(0, Math.ceil((user.waits_until-Date.now()) / 1000 / 60)) +' minutes';
@@ -72,7 +72,7 @@ exports.login = async (req, res) => {
                 }
                 await user.save();
                 writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
-                return res.status(401).json({message: `${user.email} Invalid credentials`});
+                return res.status(401).json({message: `Invalid credentials`});
             }
             if (user.status.toString() !== 'active') {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);

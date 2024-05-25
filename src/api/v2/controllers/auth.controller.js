@@ -443,3 +443,20 @@ exports.verifyDevice = async (req, res) => {
         return res.redirect(`${process.env.FRONTEND_URL}/verify-result/failed/${message}`);
     }
 }
+
+// check false login attempts
+exports.checkFalseLoginAttempts = async (req, res) => {
+    try {
+        const { email } = req.params;
+
+        let user = await User.findOne({ email: email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        console.log(user.falseLoginAttempts);
+        return res.status(200).json({ attempts: user.falseLoginAttempts });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}

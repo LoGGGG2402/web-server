@@ -25,7 +25,7 @@ let app = express();
 
 // middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL + '/',
+    origin: "171.224.93.215",
     credentials: true,
     optionsSuccessStatus: 200
 }));

@@ -3,7 +3,6 @@ let express = require('express');
 let path = require('path');
 let cookieParser = require('cookie-parser');
 let logger = require('morgan');
-// let cors = require('cors');
 let requestIp = require('request-ip');
 // let rateLimit = require('express-rate-limit');
 
@@ -24,16 +23,6 @@ let apiRouter = require('./src/api/versionRouter');
 let app = express();
 
 // middleware
-// app.use(cors({
-//     origin: "http://localhost:5173",
-//     credentials: true,
-//     optionsSuccessStatus: 200
-// }));
-
-// app.use((req, res, next) => {
-//     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-//     next();
-// });
 
 // app.use(rateLimit({
 //     windowMs: 15 * 60 * 1000,

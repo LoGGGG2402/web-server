@@ -83,7 +83,7 @@ exports.login = async (req, res) => {
                     return res.status(400).json({message: 'reCAPTCHA verification failed'});
                 }
             }
-            let device = `${req.clientIp} - ${req.headers['User-Agent']}`;
+            let device = `${req.clientIp} - ${req.headers.userAgent}`;
             if (user.devices.indexOf(device) === -1) {
                 // send email with verification link to verify new device
                 let verificationToken = await jwt.signDeviceVerificationToken({_id: user._id, device: device});
@@ -167,7 +167,7 @@ exports.register = async (req, res) => {
                     writeLog.error(`[${req.clientIp}] ${err.message}`);
                     return res.status(500).json({message: err.message});
                 }
-                let device = `${req.clientIp} - ${req.headers['User-Agent']}`;
+                let device = `${req.clientIp} - ${req.headers.userAgent}`;
                 let newUser = new User({
                     username: username,
                     password: hash,
@@ -367,7 +367,6 @@ exports.resetPassword = async (req, res) => {
         return res.status(403).json({message: 'Forbidden'});
     }
 }
-
 
 // Verify email controller
 // PATCH /api/v2/auth/verify-email/:token

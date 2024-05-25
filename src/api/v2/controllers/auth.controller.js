@@ -57,7 +57,7 @@ exports.login = async (req, res) => {
         .then(async (user) => {
             if (!user) {
                 writeLog.error(`[${req.clientIp}] ${email} not found`);
-                return res.status(404).json({message: `${email} Invalid credentials`});
+                return res.status(404).json({message: `Invalid credentials`});
             }
             if (user.waits_until > Date.now()) {
                 let message = 'Too many login attempts. Please wait for '+ Math.max(0, Math.ceil((user.waits_until-Date.now()) / 1000 / 60)) +' minutes';
@@ -72,7 +72,7 @@ exports.login = async (req, res) => {
                 }
                 await user.save();
                 writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
-                return res.status(401).json({message: `${user.email} Invalid credentials`});
+                return res.status(401).json({message: `Invalid credentials`});
             }
             if (user.status.toString() !== 'active') {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
@@ -155,7 +155,6 @@ exports.register = async (req, res) => {
                 await newUser.save();
                 // send email with verification link to activate account
                 let verificationToken = await jwt.signEmailVerificationToken(newUser._id)
-                res.cookie('verificationToken', verificationToken, {httpOnly: true,maxAge: 10 * 60 * 1000});
                 let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-email/${verificationToken}`;
                 let subject = 'Account Verification';
                 let text = `Click on the link to verify your account: ${verificationLink}`;
@@ -371,7 +370,6 @@ exports.activateAccount = async (req, res) => {
         }
         // send email with verification link to activate account
         let verificationToken = await jwt.signEmailVerificationToken(user[0]._id)
-        res.cookie('verificationToken', verificationToken, {httpOnly: true,maxAge: 10 * 60 * 1000});
         let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-email/${verificationToken}`;
         let subject = 'Account Verification';
         let text = `Click on the link to verify your account: ${verificationLink}`;

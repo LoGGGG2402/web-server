@@ -225,8 +225,8 @@ exports.refreshToken = async (req, res) => {
 
 
         let options = {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production'
+            // httpOnly: true,
+            // secure: process.env.NODE_ENV === 'production'
         };
         res.cookie('accessToken', tokens.accessToken, options);
         res.cookie('refreshToken', tokens.refreshToken, options);

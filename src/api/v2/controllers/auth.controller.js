@@ -241,6 +241,16 @@ exports.refreshToken = async (req, res) => {
         writeLog.info(`[${req.clientIp}] Token refreshed`);
         return res.status(200).json({message: 'Token refreshed'});
     } catch (error) {
+        // if error is cannot verify token, then it is invalid token error
+        if (error.message === 'invalid signature') {
+            // if invalid token, clear the cookie
+            res.clearCookie('accessToken');
+            res.clearCookie('refreshToken');
+            res.clearCookie('csrfToken');
+            writeLog.error(`[${req.clientIp}] Invalid token`);
+            // redirect to login page
+            return res.redirect(`${process.env.FRONTEND_URL}/login`);
+        }
         writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(403).json({message: 'Forbidden'});
     }

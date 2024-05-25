@@ -88,16 +88,24 @@ let adminMiddleware = async (req, res, next) => {
         req.user = user;
         next();
     } catch (err) {
-        writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
-        // res.clearCookie('accessToken');
-        // res.clearCookie('refreshToken')
-        // res.clearCookie('csrfToken')
-        // res.redirect('/login')
-        return res.status(401).json({
-            success: false,
-            message: 'Unauthorized'
-        });
+        if (err.message === 'invalid signature') {
+            // if invalid token, clear the cookie
+            res.clearCookie('accessToken');
+            res.clearCookie('refreshToken');
+            res.clearCookie('csrfToken');
+            writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Invalid token`);
+            // redirect to login page
+            return res.redirect(`${process.env.FRONTEND_URL}/login`);
+        }
 
+        if (err.message === 'jwt expired') {
+            writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Token expired`)
+            // res.clearCookie('accessToken');
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+        }
     }
 }
 

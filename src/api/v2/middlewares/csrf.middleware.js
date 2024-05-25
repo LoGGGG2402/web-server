@@ -26,8 +26,15 @@ let csrfMiddleware = async (req, res, next) => {
         next();
 
     } catch (err) {
-        writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
+        if (err.message === 'jwt expired') {
+            writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Token expired`)
+            return res.status(401).json({
+                success: false,
+                message: 'Token expired'
+            });
+        }
 
+        writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Unauthorized`)
         return res.status(401).json({
             success: false,
             message: 'Unauthorized'

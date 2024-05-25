@@ -47,7 +47,7 @@ exports.login = async (req, res) => {
             if (user.waits_until > Date.now()) {
                 let message = 'Too many login attempts. Please wait for '+ Math.max(0, Math.ceil((user.waits_until-Date.now()) / 1000 / 60)) +' minutes';
                 writeLog.error(`[${req.clientIp}] ${user.email} Too many login attempts. Try again later`);
-                return res.status(429).json({message: message});
+                return res.status(428).json({message: message});
             }
             let isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});
             }
-            if (user.falseLoginAttempts >= 5) {
+            if (user.falseLoginAttempts >= 3) {
                 // Verify reCAPTCHA
                 if (recaptcha) {
                     try {

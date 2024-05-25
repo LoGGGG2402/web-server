@@ -22,15 +22,15 @@ let apiRouter = require('./src/api/versionRouter');
 // app
 let app = express();
 
-app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next();
-});
+// app.use((req, res, next) => {
+//     res.header("Access-Control-Allow-Origin", "*");
+//     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//     next();
+// });
 
 // middleware
 app.use(cors({
-    origin: "171.224.93.215",
+    origin: "*",
     credentials: true,
     optionsSuccessStatus: 200
 }));

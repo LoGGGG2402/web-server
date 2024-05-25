@@ -6087,3 +6087,4 @@
 /node_modules/yallist/yallist.js
 /node_modules/.package-lock.json
 /src/api/v2/helper/errors.log
+/node_modules/

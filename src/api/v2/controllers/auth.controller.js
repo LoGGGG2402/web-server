@@ -44,6 +44,26 @@ exports.login = async (req, res) => {
                 writeLog.error(`[${req.clientIp}] ${email} not found`);
                 return res.status(404).json({message: `Invalid credentials`});
             }
+            if (user.falseLoginAttempts >= 5) {
+                // Verify reCAPTCHA
+                if (recaptcha) {
+                    try {
+                        const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
+                        const {success} = response.data;
+                        if (!success) {
+                            writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                            return res.status(400).json({message: 'reCAPTCHA verification failed'});
+                        }
+                        writeLog.info(`[${req.clientIp}] reCAPTCHA verification successful`);
+                    } catch (error) {
+                        writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                        return res.status(500).json({message: 'Internal server error'});
+                    }
+                }else {
+                    writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
+                    return res.status(400).json({message: 'reCAPTCHA verification failed', attempts: user.falseLoginAttempts});
+                }
+            }
             if (user.waits_until > Date.now()) {
                 let message = 'Too many login attempts. Please wait for '+ Math.max(0, Math.ceil((user.waits_until-Date.now()) / 1000 / 60)) +' minutes';
                 writeLog.error(`[${req.clientIp}] ${user.email} Too many login attempts. Try again later`);
@@ -64,27 +84,6 @@ exports.login = async (req, res) => {
             if (user.status.toString() !== 'active') {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});
-            }
-
-            if (user.falseLoginAttempts >= 5) {
-                // Verify reCAPTCHA
-                if (recaptcha) {
-                    try {
-                        const response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptcha}`);
-                        const {success} = response.data;
-                        if (!success) {
-                            writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-                            return res.status(400).json({message: 'reCAPTCHA verification failed'});
-                        }
-                        writeLog.info(`[${req.clientIp}] reCAPTCHA verification successful`);
-                    } catch (error) {
-                        writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-                        return res.status(500).json({message: 'Internal server error'});
-                    }
-                }else {
-                    writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-                    return res.status(400).json({message: 'reCAPTCHA verification failed', attempts: user.falseLoginAttempts});
-                }
             }
             let device = `${req.clientIp} - ${req.headers.userAgent}`;
             if (user.devices.indexOf(device) === -1) {
@@ -448,18 +447,18 @@ exports.verifyDevice = async (req, res) => {
 }
 
 // check false login attempts
-exports.checkFalseLoginAttempts = async (req, res) => {
-    try {
-        const { email } = req.params;
-
-        let user = await User.findOne({ email: email });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        console.log(user.falseLoginAttempts);
-        return res.status(200).json({ attempts: user.falseLoginAttempts });
-    } catch (error) {
-        console.error("Error:", error);
-        return res.status(500).json({ message: 'Internal server error' });
-    }
-}
+// exports.checkFalseLoginAttempts = async (req, res) => {
+//     try {
+//         const { email } = req.params;
+//
+//         let user = await User.findOne({ email: email });
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
+//         console.log(user.falseLoginAttempts);
+//         return res.status(200).json({ attempts: user.falseLoginAttempts });
+//     } catch (error) {
+//         console.error("Error:", error);
+//         return res.status(500).json({ message: 'Internal server error' });
+//     }
+// }

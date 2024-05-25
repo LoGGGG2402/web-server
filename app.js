@@ -34,7 +34,29 @@ let app = express();
 //     credentials: true,
 //     optionsSuccessStatus: 200
 // }));
-app.use(cors());
+// app.use(cors());
+
+// location /api {
+//     proxy_pass http://localhost:3000;
+//     proxy_http_version 1.1;
+//     proxy_set_header Upgrade $http_upgrade;
+//     proxy_set_header Connection 'upgrade';
+//     proxy_set_header Host $host;
+//     proxy_cache_bypass $http_upgrade;
+//     add_header 'Access-Control-Allow-Origin' '*';
+//     add_header 'Access-Control-Allow-Credentials' 'true';
+//     add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+//     add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+// }
+
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range');
+    next();
+})
+
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));

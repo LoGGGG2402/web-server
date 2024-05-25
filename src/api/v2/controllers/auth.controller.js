@@ -31,7 +31,7 @@ const generateToken = async (user) => {
 // Request body: { email, password, remember }
 // Response body: { message, username, _id, accessToken, refreshToken }
 exports.login = async (req, res) => {
-    const { email, password,remember, recaptcha } = req.body;
+    const { email, password, remember, recaptcha } = req.body;
     // Verify reCAPTCHA
     if (recaptcha) {
         try {
@@ -89,7 +89,7 @@ exports.login = async (req, res) => {
                 let html = `<p>Click <a href="${verificationLink}">here</a> to verify new device</p>`;
                 sendEmail(user.email, subject, text, html).then()
                 writeLog.info(`[${req.clientIp}] ${user.email} login from new device`);
-                return res.status(200).json({message: 'Please check your email to verify new device'});
+                return res.status(401).json({message: 'Please check your email to verify new device'});
             }
             user.falseLoginAttempts = 0;
 

@@ -88,8 +88,8 @@ exports.login = async (req, res) => {
             let csrfToken = await csrf.generateCSRFToken();
 
             let options = {
-                //httpOnly: true,
-                // secure: process.env.NODE_ENV === 'production'
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production'
             };
             if (remember) {
                 options.expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -97,6 +97,9 @@ exports.login = async (req, res) => {
             res.cookie('accessToken', tokens.accessToken, options);
             res.cookie('refreshToken', tokens.refreshToken, options);
             //for CSRF token
+            options = {
+                secure: process.env.NODE_ENV === 'production'
+            }
             res.cookie('csrfToken', csrfToken, options);
 
             writeLog.info(`[${req.clientIp}] ${user.email} logged in`);
@@ -225,8 +228,8 @@ exports.refreshToken = async (req, res) => {
 
 
         let options = {
-            // httpOnly: true,
-            // secure: process.env.NODE_ENV === 'production'
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production'
         };
         res.cookie('accessToken', tokens.accessToken, options);
         res.cookie('refreshToken', tokens.refreshToken, options);

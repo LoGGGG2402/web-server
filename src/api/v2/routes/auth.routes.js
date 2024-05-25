@@ -31,8 +31,7 @@ router.route('/reset-password/:token')
 
 router.route('/verify-email/:token')
     .get(authController.verifyEmail); // GET /api/v2/auth/verify-email/:token - Verify Email (Public)
-router.route('/check-false-login-attempts/:email')
-    .get(authController.checkFalseLoginAttempts); // POST /api/v2/auth/check-false-login-attempts (Public)
+
 module.exports = router;
 
 

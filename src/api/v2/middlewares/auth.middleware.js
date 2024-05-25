@@ -100,7 +100,6 @@ let adminMiddleware = async (req, res, next) => {
 
         if (err.message === 'jwt expired') {
             writeLog.error(`[${req.clientIp}] - [${req.originalUrl}] - [${req.method}] - [${req.protocol}] - Token expired`)
-            // res.clearCookie('accessToken');
             return res.status(401).json({
                 success: false,
                 message: 'Unauthorized'

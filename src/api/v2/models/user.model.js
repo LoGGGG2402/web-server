@@ -71,6 +71,10 @@ let userSchema = new mongoose.Schema({
     oldPasswords: {
         type: [String],
         default: []
+    },
+    devices: {
+        type: [String],
+        default: []
     }
 }, {
     timestamps: true

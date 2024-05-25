@@ -111,7 +111,6 @@ let verifyResetToken = (token) => {
     });
 }
 
-
 let signEmailVerificationToken = (payload) => {
     return new Promise((resolve, reject) => {
         // Encode encrypted payload with secret key
@@ -133,12 +132,47 @@ let signEmailVerificationToken = (payload) => {
     });
 }
 
-
 let verifyEmailVerificationToken = (token) => {
     return new Promise((resolve, reject) => {
         const secret = process.env.EMAIL_VERIFICATION_TOKEN_SECRET;
         if (!secret) {
             reject(new Error('No email verification token secret provided'));
+        }
+        jwtHelper.verify(token, secret, (err, decoded) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(decoded.data);
+        });
+    });
+}
+
+let signDeviceVerificationToken = (payload) => {
+    return new Promise((resolve, reject) => {
+        // Encode encrypted payload with secret key
+        const secret = process.env.DEVICE_VERIFICATION_TOKEN_SECRET;
+        if (!secret) {
+            reject(new Error('No device verification token secret provided'));
+        }
+        const options = {
+            // expires in 1 year
+            expiresIn: '1y',
+            issuer: 'localhost'
+        };
+        jwtHelper.sign({data: payload}, secret, options, (err, token) => {
+            if (err) {
+                reject(err);
+            }
+            resolve(token);
+        });
+    });
+}
+
+let verifyDeviceVerificationToken = (token) => {
+    return new Promise((resolve, reject) => {
+        const secret = process.env.DEVICE_VERIFICATION_TOKEN_SECRET;
+        if (!secret) {
+            reject(new Error('No device verification token secret provided'));
         }
         jwtHelper.verify(token, secret, (err, decoded) => {
             if (err) {
@@ -157,6 +191,8 @@ module.exports = {
     signResetToken,
     verifyResetToken,
     signEmailVerificationToken,
-    verifyEmailVerificationToken
+    verifyEmailVerificationToken,
+    signDeviceVerificationToken,
+    verifyDeviceVerificationToken
 }
 

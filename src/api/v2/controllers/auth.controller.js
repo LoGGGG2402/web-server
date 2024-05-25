@@ -78,6 +78,19 @@ exports.login = async (req, res) => {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});
             }
+            let device = `${req.clientIp} - ${req.headers['User-Agent']}`;
+
+            if (user.devices.indexOf(device) === -1) {
+                // send email with verification link to verify new device
+                let verificationToken = await jwt.signDeviceVerificationToken(user._id, device);
+                let verificationLink = `${process.env.BACKEND_URL}/api/v2/auth/verify-device/${verificationToken}`;
+                let subject = 'Device Verification';
+                let text = `Click on the link to verify new device: ${verificationLink}`;
+                let html = `<p>Click <a href="${verificationLink}">here</a> to verify new device</p>`;
+                sendEmail(user.email, subject, text, html).then()
+                writeLog.info(`[${req.clientIp}] ${user.email} login from new device`);
+                return res.status(200).json({message: 'Please check your email to verify new device'});
+            }
             user.falseLoginAttempts = 0;
 
             await user.save();
@@ -150,10 +163,12 @@ exports.register = async (req, res) => {
                     writeLog.error(`[${req.clientIp}] ${err.message}`);
                     return res.status(500).json({message: err.message});
                 }
+                let device = `${req.clientIp} - ${req.headers['User-Agent']}`;
                 let newUser = new User({
                     username: username,
                     password: hash,
                     email: email,
+                    devices: [device]
                 });
                 await newUser.save();
                 // send email with verification link to activate account
@@ -361,15 +376,18 @@ exports.verifyEmail = async (req, res) => {
             null
         );
         if (!user) {
+            let message = encodeURIComponent('User not found in verify email');
             writeLog.error(`[${req.clientIp}] User not found in verify email`);
-            return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
+            return res.redirect(`${process.env.FRONTEND_URL}/verify-result/failed/${message}`);
         }
+        let message = encodeURIComponent('Email verified successfully');
         writeLog.info(`[${req.clientIp}] email verified`);
-        return res.redirect(`${process.env.FRONTEND_URL}/final-register/success`);
+        return res.redirect(`${process.env.FRONTEND_URL}/verify-result/success/${message}`);
     }
     catch (error) {
+        let message = encodeURIComponent('Email verification failed');
         writeLog.error(`[${req.clientIp}] ${error.message}`);
-        return res.redirect(`${process.env.FRONTEND_URL}/final-register/failed`);
+        return res.redirect(`${process.env.FRONTEND_URL}/verify-result/failed/${message}`);
     }
 }
 
@@ -395,5 +413,30 @@ exports.activateAccount = async (req, res) => {
     } catch (error) {
         writeLog.error(`[${req.clientIp}] ${error.message}`);
         return res.status(500).json({message: 'Internal server error'});
+    }
+}
+
+// Verify device controller
+// PATCH /api/v2/auth/verify-device/:token
+exports.verifyDevice = async (req, res) => {
+    try {
+        let payload = await jwt.verifyDeviceVerificationToken(req.params.token);
+        let user = await User.findById(payload._id, null, null);
+        if (!user) {
+            let message = encodeURIComponent('User not found in verify device');
+            writeLog.error(`[${req.clientIp}] User not found in verify device`);
+            return res.redirect(`${process.env.FRONTEND_URL}/verify-result/failed/${message}`);
+        }
+        let device = payload.device;
+        user.devices.push(device);
+        await user.save();
+        let message = encodeURIComponent('Device verified');
+        writeLog.info(`[${req.clientIp}] Device verified`);
+        return res.redirect(`${process.env.FRONTEND_URL}/verify-result/success/${message}`);
+    }
+    catch (error) {
+        let message = encodeURIComponent('Device verification failed');
+        writeLog.error(`[${req.clientIp}] ${error.message}`);
+        return res.redirect(`${process.env.FRONTEND_URL}/verify-result/failed/${message}`);
     }
 }

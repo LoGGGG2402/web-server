@@ -5,7 +5,7 @@ let cookieParser = require('cookie-parser');
 let logger = require('morgan');
 let requestIp = require('request-ip');
 // let rateLimit = require('express-rate-limit');
-// let cors = require('cors');
+let cors = require('cors');
 
 require('dotenv').config();
 
@@ -24,11 +24,11 @@ let apiRouter = require('./src/api/versionRouter');
 let app = express();
 
 // middleware
-// app.use(cors({
-//         origin: process.env.CORS_ORIGIN,
-//         credentials: true,
-//     }
-// ));
+app.use(cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+    optionsSuccessStatus: 200
+}));
 
 
 // app.use(rateLimit({

@@ -23,14 +23,6 @@ let apiRouter = require('./src/api/versionRouter');
 // app
 let app = express();
 
-// middleware
-app.use(cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-    optionsSuccessStatus: 200
-}));
-
-
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 300,
@@ -57,7 +49,7 @@ app.use(requestIp.mw());
 // routes
 app.use('/api', apiRouter);
 app.use('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 module.exports = app;

@@ -5,6 +5,7 @@ let cookieParser = require('cookie-parser');
 let logger = require('morgan');
 let requestIp = require('request-ip');
 // let rateLimit = require('express-rate-limit');
+// let cors = require('cors');
 
 require('dotenv').config();
 
@@ -23,6 +24,12 @@ let apiRouter = require('./src/api/versionRouter');
 let app = express();
 
 // middleware
+// app.use(cors({
+//         origin: process.env.CORS_ORIGIN,
+//         credentials: true,
+//     }
+// ));
+
 
 // app.use(rateLimit({
 //     windowMs: 15 * 60 * 1000,
@@ -50,7 +57,7 @@ app.use(requestIp.mw());
 // routes
 app.use('/api', apiRouter);
 app.use('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 module.exports = app;

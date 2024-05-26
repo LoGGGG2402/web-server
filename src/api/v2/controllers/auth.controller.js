@@ -72,7 +72,7 @@ exports.login = async (req, res) => {
             let isMatch = await bcrypt.compare(password, user.password);
             if (!isMatch) {
                 user.falseLoginAttempts += 1;
-                if (user.falseLoginAttempts >= 3) {
+                if (user.falseLoginAttempts >= 5) {
                     user.waits_until = Date.now() + Math.pow(2, user.falseLoginAttempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
                 }
                 await user.save();

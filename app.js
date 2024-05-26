@@ -4,7 +4,7 @@ let path = require('path');
 let cookieParser = require('cookie-parser');
 let logger = require('morgan');
 let requestIp = require('request-ip');
-let rateLimit = require('express-rate-limit');
+// let rateLimit = require('express-rate-limit');
 let cors = require('cors');
 
 require('dotenv').config();
@@ -31,19 +31,19 @@ app.use(cors({
 }));
 
 
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 700,
-    headers: true,
-    handler: (req, res) => {
-        const retryAfter = Math.ceil((req.rateLimit.resetTime - Date.now()) / 1000);
-        res.set('Retry-After', retryAfter);
-        res.status(429).json({
-            success: false,
-            message: `You have sent too many requests. Please try again after ${retryAfter} seconds.`,
-        });
-    },
-}));
+// app.use(rateLimit({
+//     windowMs: 15 * 60 * 1000,
+//     max: 300,
+//     headers: true,
+//     handler: (req, res) => {
+//       const retryAfter = Math.ceil((req.rateLimit.resetTime - Date.now()) / 1000);
+//       res.set('Retry-After', retryAfter);
+//       res.status(429).json({
+//         success: false,
+//         message: `You have sent too many requests. Please try again after ${retryAfter} seconds.`,
+//       });
+//     },
+//   }));
 
 
 app.use(logger('dev'));

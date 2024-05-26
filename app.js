@@ -5,7 +5,7 @@ let cookieParser = require('cookie-parser');
 let logger = require('morgan');
 let requestIp = require('request-ip');
 let rateLimit = require('express-rate-limit');
-let cors = require('cors');
+// let cors = require('cors');
 
 require('dotenv').config();
 

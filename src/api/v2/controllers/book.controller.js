@@ -112,7 +112,7 @@ exports.create = async (req, res) => {
             });
         }
     }
-    for (let ntc in categories_name) {
+    for (let ntc in req.body.categories) {
         let cleanText = DOMPurify.sanitize(ntc);
         if (cleanText !== ntc) {
             fs.unlinkSync(req.file.path);

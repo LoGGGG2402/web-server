@@ -44,7 +44,7 @@ exports.login = async (req, res) => {
                 writeLog.error(`[${req.clientIp}] ${email} not found`);
                 return res.status(404).json({message: `Invalid credentials`});
             }
-            if (user.falseLoginAttempts >= 5) {
+            if (user.falseLoginAttempts >= 3) {
                 // Verify reCAPTCHA
                 if (recaptcha) {
                     try {
@@ -60,8 +60,8 @@ exports.login = async (req, res) => {
                         return res.status(500).json({message: 'Internal server error'});
                     }
                 }else {
-                    writeLog.error(`[${req.clientIp}] reCAPTCHA verification failed`);
-                    return res.status(400).json({message: 'reCAPTCHA verification failed', attempts: user.falseLoginAttempts});
+                    writeLog.error(`[${req.clientIp}] reCAPTCHA verification is required`);
+                    return res.status(400).json({message: 'reCAPTCHA verification is required', attempts: user.falseLoginAttempts});
                 }
             }
             if (user.waits_until > Date.now()) {
@@ -70,17 +70,15 @@ exports.login = async (req, res) => {
                 return res.status(428).json({message: message});
             }
             let isMatch = await bcrypt.compare(password, user.password);
-
             if (!isMatch) {
                 user.falseLoginAttempts += 1;
-                if (user.falseLoginAttempts >= 5) {
+                if (user.falseLoginAttempts >= 3) {
                     user.waits_until = Date.now() + Math.pow(2, user.falseLoginAttempts - 5) * 1000 * 60; // 2^(attempts-5) minutes
                 }
                 await user.save();
                 writeLog.error(`[${req.clientIp}] ${user.email} Invalid credentials`);
                 return res.status(401).json({message: `Invalid credentials`, attempts: user.falseLoginAttempts});
             }
-
             if (user.status.toString() !== 'active') {
                 writeLog.error(`[${req.clientIp}] ${user.email} is ${user.status}`);
                 return res.status(403).json({message: `${user.email} is ${user.status}`});

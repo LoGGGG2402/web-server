@@ -118,7 +118,19 @@ exports.updateProfile = async (req, res) => {
                 return res.status(404).json({message: 'User not found'});
             }
             writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Update user profile] - [200]`);
-            return res.status(200).json(user);
+            let userInfo = {
+                username: user.username,
+                email: user.email,
+                name: user.name,
+                phone: user.phone,
+                address: user.address,
+                role: user.role,
+                status: user.status,
+                avatar: user.avatar,
+                date_of_birth: user.date_of_birth,
+                gender: user.gender
+            }
+            return res.status(200).json(userInfo);
         })
         .catch((error) => {
             writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);
@@ -308,7 +320,7 @@ exports.getAllUsers = async (req, res) => {
     }
 
     User.find(condition, null, null)
-        .select('-password')
+        .select('-password -refreshToken -oldPasswords -__v -devices')
         .then((users) => {
             writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Get all users] - [200]`);
             return res.status(200).json(users);
@@ -395,15 +407,33 @@ exports.changeStatus = async (req, res) => {
             return res.status(500).json({ message: 'Internal server error' });
         }
     } else {
-        if (req.body.role) {
-            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing reCAPTCHA] - [400]`);
-            return res.status(400).json({ message: 'Missing reCAPTCHA' });
-        }
+        writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Missing reCAPTCHA] - [400]`);
+        return res.status(400).json({ message: 'Missing reCAPTCHA' });
     }
+
+    // if status is not in ['active', 'inactive', 'suspended']
+    let updateInfo = {}
+    if (req.body.status) {
+        if (['active', 'inactive', 'suspended'].indexOf(req.body.status) === -1) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid status] - [400]`);
+            return res.status(400).json({message: 'Invalid status'});
+        }
+        updateInfo.status = req.body.status;
+    }
+    // if role is not in ['user', 'admin']
+    if (req.body.role) {
+        if (['user', 'admin'].indexOf(req.body.role) === -1) {
+            writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Invalid role] - [400]`);
+            return res.status(400).json({message: 'Invalid role'});
+        }
+        updateInfo.role = req.body.role;
+    }
+
+
 
     User.findByIdAndUpdate(
         req.params.userId,
-        req.body,
+        updateInfo,
         {new: true}
     )
         .then((user) => {
@@ -412,7 +442,19 @@ exports.changeStatus = async (req, res) => {
                 return res.status(404).json({message: 'User not found'});
             }
             writeLog.info(`[${req.clientIp}] - [${req.user.email}] - [Change user status] - [200]`);
-            return res.status(200).json(user);
+            let userInfo = {
+                username: user.username,
+                email: user.email,
+                name: user.name,
+                phone: user.phone,
+                address: user.address,
+                role: user.role,
+                status: user.status,
+                avatar: user.avatar,
+                date_of_birth: user.date_of_birth,
+                gender: user.gender
+            }
+            return res.status(200).json(userInfo);
         })
         .catch((error) => {
             writeLog.error(`[${req.clientIp}] - [${req.user.email}] - [Internal server error] - [500] - [${error}]`);

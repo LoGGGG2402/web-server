@@ -299,6 +299,12 @@ exports.forgotPassword = async (req, res) => {
         }
         // send email with reset link
         let resetToken = await jwt.signResetToken(user._id);
+
+        // save reset token to user document
+        user.resetPasswordToken = resetToken;
+        await user.save();
+
+
         let resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
         let subject = 'Reset Password';
         let text = `Click on the link to reset your password: ${resetLink}`;
@@ -334,6 +340,11 @@ exports.resetPassword = async (req, res) => {
             return res.status(404).json({message: 'User not found'});
         }
 
+        if (user.resetPasswordToken !== req.params.token) {
+            writeLog.error(`[${req.clientIp}] Invalid reset token`);
+            return res.status(403).json({message: 'Invalid reset token'});
+        }
+
         for (let old_password of user.oldPasswords) {
             let isMatch = await bcrypt.compare(password, old_password);
             if (isMatch) {
@@ -341,6 +352,7 @@ exports.resetPassword = async (req, res) => {
                 return res.status(400).json({message: 'Password already used'});
             }
         }
+
         bcrypt.genSalt(10, (err, salt) => {
             bcrypt.hash(password, salt, async (err, hash) => {
                 if (err) {
@@ -352,7 +364,7 @@ exports.resetPassword = async (req, res) => {
                     {
                         password: hash,
                         $unset: {
-                            resetToken: 1 // this removes the field from document
+                            resetPasswordToken: 1 // this removes the field from document
                         },
                         oldPasswords: [...user.oldPasswords, user.password]
                     },

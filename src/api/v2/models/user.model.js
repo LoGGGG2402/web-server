@@ -75,7 +75,11 @@ let userSchema = new mongoose.Schema({
     devices: {
         type: [String],
         default: []
-    }
+    },
+    resetPasswordToken: {
+        type: String,
+        required: false
+    },
 }, {
     timestamps: true
 });

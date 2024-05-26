@@ -84,7 +84,7 @@ let signResetToken = (payload) => {
         }
         const options = {
             // expires in 1 hour
-            expiresIn: '10m',
+            expiresIn: '1h',
             issuer: 'localhost'
         };
         jwtHelper.sign({data: payload}, secret, options, (err, token) => {
@@ -119,7 +119,6 @@ let signEmailVerificationToken = (payload) => {
             reject(new Error('No email verification token secret provided'));
         }
         const options = {
-            // expires in 1 year
             expiresIn: '10m',
             issuer: 'localhost'
         };
@@ -155,8 +154,7 @@ let signDeviceVerificationToken = (payload) => {
             reject(new Error('No device verification token secret provided'));
         }
         const options = {
-            // expires in 1 year
-            expiresIn: '1y',
+            expiresIn: '10m',
             issuer: 'localhost'
         };
         jwtHelper.sign({data: payload}, secret, options, (err, token) => {
@@ -186,12 +184,16 @@ let verifyDeviceVerificationToken = (token) => {
 module.exports = {
     signAccessToken,
     verifyAccessToken,
+    //
     signRefreshToken,
     verifyRefreshToken,
+    //
     signResetToken,
     verifyResetToken,
+    //
     signEmailVerificationToken,
     verifyEmailVerificationToken,
+    //
     signDeviceVerificationToken,
     verifyDeviceVerificationToken
 }
